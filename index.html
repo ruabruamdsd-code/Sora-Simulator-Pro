@@ -7,55 +7,51 @@ import {
   Move, Database
 } from 'lucide-react';
 
-// --- ค่าคงที่และประเภทอุปกรณ์ ---
+// --- รายชื่ออุปกรณ์ทั้งหมดในระบบ ---
 const COMPONENT_TYPES = {
     PANEL: 'panel',
     BATTERY: 'battery',
     CHARGER: 'charger',
-    CAPACITOR: 'capacitor',
     INVERTER: 'inverter',
-    BREAKER_DC: 'breaker',
+    BREAKER_DC: 'breaker_dc',
     FUSE: 'fuse',
     DC_SURGE: 'dc_surge',
     AC_BREAKER: 'ac_breaker',
     AC_SURGE: 'ac_surge',
     ENERGY_METER: 'energy_meter',
-    AC_SOURCE: 'ac_source', // เพิ่มแหล่งจ่ายไฟ AC
-    GROUND_BAR: 'ground_bar', // เพิ่มบาร์กราวด์
+    AC_SOURCE: 'ac_source', 
+    GROUND_BAR: 'ground_bar', 
     SOCKET: 'socket',
     BULB: 'bulb',
-    MOTOR: 'motor',
-    WIREWAY: 'wireway'
+    MOTOR: 'motor'
 };
 
 const SPECS = {
-    [COMPONENT_TYPES.PANEL]: { label: 'แผงโซล่าเซลล์ (PV)', type: 'source', maxV: 25, maxA: 5, width: 100, height: 140, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 70, color: 'black'}] },
-    [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่ 12V', type: 'source', maxV: 12.8, maxA: 50, width: 100, height: 120, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 70, color: 'black'}] },
+    [COMPONENT_TYPES.PANEL]: { label: 'แผงโซล่าเซลล์', type: 'source', width: 120, height: 160, terminals: [{id: 'pos', x: 40, color: 'red'}, {id: 'neg', x: 80, color: 'black'}], editable: 'efficiency', unit: '%' },
+    [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่ 12V', type: 'source', width: 110, height: 130, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 80, color: 'black'}], editable: 'capacity', unit: 'Ah' },
     [COMPONENT_TYPES.CHARGER]: { 
         label: 'โซล่าร์ชาร์จเจอร์', 
         type: 'converter', 
-        width: 140, 
-        height: 100, 
+        width: 180, 
+        height: 120, 
         terminals: [
-            {id: 'pv_pos', label: 'PV+', x: 20, color: 'red'}, {id: 'pv_neg', label: 'PV-', x: 40, color: 'black'},
-            {id: 'bat_pos', label: 'BAT+', x: 60, color: 'red'}, {id: 'bat_neg', label: 'BAT-', x: 80, color: 'black'},
-            {id: 'load_pos', label: 'LOAD+', x: 100, color: 'red'}, {id: 'load_neg', label: 'LOAD-', x: 120, color: 'black'}
+            {id: 'pv_pos', label: 'PV+', x: 25, color: 'red'}, {id: 'pv_neg', label: 'PV-', x: 50, color: 'black'},
+            {id: 'bat_pos', label: 'BAT+', x: 90, color: 'red'}, {id: 'bat_neg', label: 'BAT-', x: 115, color: 'black'},
+            {id: 'load_pos', label: 'LOAD+', x: 145, color: 'red'}, {id: 'load_neg', label: 'LOAD-', x: 170, color: 'black'}
         ] 
     },
-    [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse (OCPD)', type: 'switch', width: 80, height: 60, terminals: [{id: 'in', label: 'เข้า', x: 20, color: 'black'}, {id: 'out', label: 'ออก', x: 60, color: 'black'}] },
+    [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse', type: 'switch', width: 80, height: 60, terminals: [{id: 'in', label: 'เข้า', x: 20, color: 'black'}, {id: 'out', label: 'ออก', x: 60, color: 'black'}] },
     [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', type: 'switch', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 30, color: 'black'}, {id: 'in_2', label: 'เข้า', x: 50, color: 'black'}, {id: 'out_1', label: 'ออก', x: 70, color: 'black'}, {id: 'out_2', label: 'ออก', x: 90, color: 'black'}] },
-    [COMPONENT_TYPES.DC_SURGE]: { label: 'DC Surge (SPD)', type: 'protection', width: 80, height: 80, terminals: [{id: 'pos', label: '+', x: 20, color: 'red'}, {id: 'neg', label: '-', x: 40, color: 'black'}, {id: 'g', label: 'G', x: 60, color: 'green'}] },
-    [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์ (Inverter)', type: 'converter', width: 140, height: 100, terminals: [{id: 'dc_pos', label: 'DC+', x: 30, color: 'red'}, {id: 'dc_neg', label: 'DC-', x: 50, color: 'black'}, {id: 'ac_l', label: 'L', x: 90, color: 'brown'}, {id: 'ac_n', label: 'N', x: 110, color: 'blue'}] },
-    
-    [COMPONENT_TYPES.AC_SOURCE]: { label: 'แหล่งจ่ายไฟ AC 220V', type: 'source', width: 100, height: 100, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 50, color: 'blue'}, {id: 'g', label: 'G', x: 75, color: 'green'}] },
-    [COMPONENT_TYPES.GROUND_BAR]: { label: 'บาร์กราวด์ (Ground Bar)', type: 'protection', width: 150, height: 40, terminals: [{id: 'g1', x: 20, color: 'green'}, {id: 'g2', x: 45, color: 'green'}, {id: 'g3', x: 75, color: 'green'}, {id: 'g4', x: 105, color: 'green'}, {id: 'g5', x: 130, color: 'green'}] },
-    
+    [COMPONENT_TYPES.DC_SURGE]: { label: 'DC Surge (SPD)', type: 'protection', width: 90, height: 90, terminals: [{id: 'pos', label: '+', x: 25, color: 'red'}, {id: 'neg', label: '-', x: 45, color: 'black'}, {id: 'g', label: 'G', x: 65, color: 'green'}] },
+    [COMPONENT_TYPES.AC_SURGE]: { label: 'AC Surge (SPD)', type: 'protection', width: 90, height: 90, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 45, color: 'blue'}, {id: 'g', label: 'G', x: 65, color: 'green'}] },
     [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', type: 'switch', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 30, color: 'brown'}, {id: 'in_n', label: 'N-เข้า', x: 50, color: 'blue'}, {id: 'out_l', label: 'L-ออก', x: 70, color: 'brown'}, {id: 'out_n', label: 'N-ออก', x: 90, color: 'blue'}] },
-    [COMPONENT_TYPES.AC_SURGE]: { label: 'AC Surge (SPD)', type: 'protection', width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 20, color: 'brown'}, {id: 'n', label: 'N', x: 40, color: 'blue'}, {id: 'g', label: 'G', x: 60, color: 'green'}] },
-    [COMPONENT_TYPES.ENERGY_METER]: { label: 'Energy Meter', type: 'meter', width: 130, height: 90, terminals: [{id: 'in_l', label: 'L-เข้า', x: 20, color: 'brown'}, {id: 'in_n', label: 'N-เข้า', x: 45, color: 'blue'}, {id: 'out_l', label: 'L-ออก', x: 85, color: 'brown'}, {id: 'out_n', label: 'N-ออก', x: 110, color: 'blue'}] },
-    [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ (Socket)', type: 'load', defaultWatts: 500, voltageRef: 220, width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 55, color: 'blue'}] },
-    [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ (Bulb)', type: 'load', defaultWatts: 60, voltageRef: 220, width: 80, height: 100, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 55, color: 'blue'}] },
-    [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์ (Motor)', type: 'load', defaultWatts: 150, voltageRef: 12, width: 100, height: 100, terminals: [{id: 'l', label: '+', x: 30, color: 'red'}, {id: 'n', label: '-', x: 70, color: 'black'}] },
+    [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์', type: 'converter', width: 150, height: 110, terminals: [{id: 'dc_pos', label: 'DC+', x: 30, color: 'red'}, {id: 'dc_neg', label: 'DC-', x: 55, color: 'black'}, {id: 'ac_l', label: 'L', x: 105, color: 'brown'}, {id: 'ac_n', label: 'N', x: 130, color: 'blue'}] },
+    [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC 220V Grid', type: 'source', width: 110, height: 110, terminals: [{id: 'l', label: 'L', x: 30, color: 'brown'}, {id: 'n', label: 'N', x: 55, color: 'blue'}, {id: 'g', label: 'G', x: 80, color: 'green'}] },
+    [COMPONENT_TYPES.GROUND_BAR]: { label: 'Ground Bar', type: 'protection', width: 160, height: 45, terminals: [{id: 'g1', x: 25, color: 'green'}, {id: 'g2', x: 55, color: 'green'}, {id: 'g3', x: 85, color: 'green'}, {id: 'g4', x: 115, color: 'green'}, {id: 'g5', x: 145, color: 'green'}] },
+    [COMPONENT_TYPES.ENERGY_METER]: { label: 'Energy Meter', type: 'meter', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 25, color: 'brown'}, {id: 'in_n', label: 'N-เข้า', x: 50, color: 'blue'}, {id: 'out_l', label: 'L-ออก', x: 90, color: 'brown'}, {id: 'out_n', label: 'N-ออก', x: 115, color: 'blue'}] },
+    [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ (Socket)', type: 'load', defaultWatts: 500, voltageRef: 220, width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 55, color: 'blue'}], editable: 'watts', unit: 'W' },
+    [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ (Bulb)', type: 'load', defaultWatts: 60, voltageRef: 220, width: 90, height: 110, terminals: [{id: 'l', label: 'L', x: 30, color: 'brown'}, {id: 'n', label: 'N', x: 60, color: 'blue'}], editable: 'watts', unit: 'W' },
+    [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์ (Motor)', type: 'load', defaultWatts: 150, voltageRef: 12, width: 110, height: 110, terminals: [{id: 'l', label: '+', x: 35, color: 'red'}, {id: 'n', label: '-', x: 75, color: 'black'}], editable: 'watts', unit: 'W' },
 };
 
 // --- Helper Functions ---
@@ -64,164 +60,144 @@ const getEventPos = (e) => {
     return { x: e.clientX, y: e.clientY };
 };
 
-const bindStartEvents = (handler) => ({
-    onMouseDown: (e) => handler(e),
-    onTouchStart: (e) => handler(e),
-});
-
-// Improved Wire Path with X and Y offset adjustment
 const getWirePath = (x1, y1, x2, y2, offX = 0, offY = 40) => {
     const midY = Math.max(y1, y2) + offY;
     const midX = (x1 + x2) / 2 + offX;
     return `M ${x1} ${y1} L ${x1} ${midY} L ${midX} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
 };
 
-// --- Visual Sub-components ---
+// --- Visual Components ---
 const Terminal = ({ x, y, color, label, onInteract, isHovered }) => (
-    <g transform={`translate(${x}, ${y})`} {...bindStartEvents((e) => { e.stopPropagation(); onInteract(e); })} className="cursor-crosshair group touch-none">
-        <circle r="25" fill="transparent" /> 
+    <g transform={`translate(${x}, ${y})`} onMouseDown={(e) => { e.stopPropagation(); onInteract(e); }} className="cursor-crosshair group">
+        <circle r="20" fill="transparent" /> 
         <g className={`transition-all duration-200 origin-center ${isHovered ? 'scale-150' : ''}`}>
             <rect x="-6" y="-6" width="12" height="12" fill="#374151" rx="2" stroke={isHovered ? "#fbbf24" : "none"} strokeWidth={isHovered ? 2 : 0} />
             <circle r="4" fill={color} stroke="white" strokeWidth="1.5" />
         </g>
-        {label && <text x="0" y={isHovered ? "24" : "18"} textAnchor="middle" fill={isHovered ? "#000" : "#4b5563"} fontSize="8" fontWeight="bold" className="pointer-events-none transition-all">{label}</text>}
+        {label && <text x="0" y={isHovered ? "26" : "20"} textAnchor="middle" fill={isHovered ? "#000" : "#4b5563"} fontSize="7" fontWeight="bold" className="pointer-events-none">{label}</text>}
     </g>
 );
 
-const ACSourceVisual = ({ width, height, isPowered }) => (
+const ChargerVisual = ({ width, height, isCharging, hasLoad }) => (
     <g>
-        <rect x="0" y="0" width={width} height={height} rx="10" fill="#334155" stroke="#1e293b" strokeWidth="2" />
-        <circle cx={width/2} cy={height/2 - 10} r="25" fill="#475569" />
-        <path d={`M ${width/2 - 15} ${height/2 - 10} Q ${width/2} ${height/2 - 25}, ${width/2 + 15} ${height/2 - 10} T ${width/2 + 35} ${height/2 - 10}`} fill="none" stroke="#fbbf24" strokeWidth="3" opacity={isPowered ? 1 : 0.3} />
-        <text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">AC 220V Grid</text>
-        {isPowered && <circle cx={width-15} cy="15" r="4" fill="#22c55e" className="animate-pulse" />}
+        <rect x="0" y="0" width={width} height={height} rx="12" fill="#0ea5e9" stroke="#0369a1" strokeWidth="2" />
+        <rect x="25" y="20" width={width-50} height="40" rx="4" fill="#ecfccb" stroke="#84cc16" strokeWidth="1.5" />
+        <text x={width/2} y="47" textAnchor="middle" fill="#365314" fontSize="14" fontWeight="bold" fontFamily="monospace">
+            {isCharging ? "CHARGING" : "STANDBY"}
+        </text>
+        <circle cx={40} cy="80" r="5" fill={isCharging ? "#22c55e" : "#1e293b"} />
+        <text x={50} y="84" fill="white" fontSize="9" fontWeight="bold">Charge</text>
+        <circle cx={width-80} cy="80" r="5" fill={hasLoad ? "#ef4444" : "#1e293b"} />
+        <text x={width-70} y="84" fill="white" fontSize="9" fontWeight="bold">Load</text>
     </g>
 );
 
-const GroundBarVisual = ({ width, height }) => (
-    <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
-        <rect x="5" y="5" width={width-10} height={height-10} rx="2" fill="url(#metalGradient)" />
-        <defs>
-            <linearGradient id="metalGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#cbd5e1" />
-                <stop offset="50%" stopColor="#94a3b8" />
-                <stop offset="100%" stopColor="#64748b" />
-            </linearGradient>
-        </defs>
-        {[20, 45, 75, 105, 130].map(cx => (
-            <circle key={cx} cx={cx} cy={height/2} r="6" fill="#475569" stroke="#1e293b" strokeWidth="1" />
-        ))}
-    </g>
-);
-
-const DCSurgeVisual = ({ width, height, isPowered }) => (
-    <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill="#991b1b" stroke="#450a0a" strokeWidth="2" />
-        <rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="#dc2626" />
-        <rect x={width / 2 - 8} y={15} width="16" height="16" fill={isPowered ? "#fca5a5" : "#991b1b"} rx="1" />
-        <text x={width/2} y={height - 25} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">DC SPD</text>
-    </g>
-);
-
-const ACBreakerVisual = ({ width, height, isPowered }) => (
-    <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" />
-        <rect x="10" y="10" width={width - 20} height={height - 20} rx="2" fill="#cbd5e1" />
-        <rect x={width / 2 - 10} y={20} width="20" height="40" fill={isPowered ? "#22c55e" : "#ef4444"} rx="2" />
-        <text x={width/2} y={height - 15} textAnchor="middle" fill="#1e293b" fontSize="10" fontWeight="bold">AC MCB</text>
-    </g>
-);
-
-const SurgeVisual = ({ width, height, isPowered }) => (
-    <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill="#166534" stroke="#052e16" strokeWidth="2" />
-        <rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="#15803d" />
-        <rect x={width / 2 - 8} y={15} width="16" height="16" fill={isPowered ? "#4ade80" : "#166534"} rx="1" />
-        <text x={width/2} y={height - 25} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">SPD</text>
-    </g>
-);
-
-const MeterVisual = ({ width, height, isPowered, volts, amps, watts }) => (
-    <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#0f172a" strokeWidth="2" />
-        <rect x="8" y="8" width={width - 16} height={height - 35} rx="2" fill="#064e3b" />
-        {isPowered ? (
-            <g>
-                <text x="15" y="25" fill="#4ade80" fontSize="12" fontFamily="monospace" fontWeight="bold">{volts.toFixed(1)}V</text>
-                <text x="15" y="40" fill="#4ade80" fontSize="12" fontFamily="monospace" fontWeight="bold">{amps.toFixed(2)}A</text>
-                <text x="15" y="55" fill="#facc15" fontSize="14" fontFamily="monospace" fontWeight="bold">{watts.toFixed(0)}W</text>
-            </g>
-        ) : (
-            <text x={width/2} y={height/2 - 5} textAnchor="middle" fill="#065f46" fontSize="14" fontFamily="monospace">OFF</text>
-        )}
-        <text x={width/2} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">ENERGY METER</text>
-    </g>
-);
-
-const PVPanelVisual = ({ width, height, sunIntensity }) => (
+const PVPanelVisual = ({ width, height, sunIntensity, efficiency = 100 }) => (
     <g>
         <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
         <g stroke="rgba(255,255,255,0.4)" strokeWidth="1">
             <line x1="0" y1={height/4} x2={width} y2={height/4} /><line x1="0" y1={height/2} x2={width} y2={height/2} />
             <line x1="0" y1={height*0.75} x2={width} y2={height*0.75} /><line x1={width/2} y1="0" x2={width/2} y2={height} />
         </g>
-        <text x={width/2} y={height/2} textAnchor="middle" fill="white" opacity="0.8" fontSize="12" fontWeight="bold">PV SOLAR</text>
+        <text x={width/2} y={height/2} textAnchor="middle" fill="white" opacity="0.8" fontSize="12" fontWeight="bold">PV {efficiency}%</text>
     </g>
 );
 
-const BatteryVisual = ({ width, height, soc, isCharging }) => (
+const BatteryVisual = ({ width, height, soc = 50 }) => (
     <g>
-        <rect x="5" y="10" width={width-10} height={height-10} rx="4" fill="#1f2937" stroke="#374151" strokeWidth="2" />
-        <rect x="20" y="0" width="15" height="10" fill="#dc2626" /><rect x={width-35} y="0" width="15" height="10" fill="#111827" />
-        <rect x="15" y="30" width={width-30} height={50} rx="2" fill="#374151" stroke="#4b5563" />
-        <rect x="18" y="33" width={(width-36) * (soc / 100)} height={44} rx="1" fill={soc > 20 ? "#22c55e" : "#ef4444"} className="transition-all duration-300" />
-        <text x={width/2} y="60" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">{Math.round(soc)}%</text>
-        {isCharging && <path d="M-2 -4 L2 0 L-1 0 L1 4 L-3 0 L0 0 Z" fill="#eab308" transform={`translate(${width/2}, 95) scale(1.5)`} />}
+        <rect x="5" y="10" width={width-10} height={height-10} rx="6" fill="#1f2937" stroke="#374151" strokeWidth="2" />
+        <rect x="20" y="0" width="20" height="12" fill="#dc2626" rx="2" />
+        <rect x={width-40} y="0" width="20" height="12" fill="#111827" rx="2" />
+        <rect x="15" y="45" width={width-30} height={55} rx="3" fill="#374151" stroke="#4b5563" />
+        <rect x="18" y="48" width={(width-36)*(soc/100)} height={49} rx="2" fill="#22c55e" opacity="0.9" />
+        <text x={width/2} y="78" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">{Math.round(soc)}%</text>
     </g>
 );
 
-const ChargerVisual = ({ width, height, isCharging, hasLoad }) => (
+const FuseVisual = ({ width, height }) => (
     <g>
-        <rect x="0" y="0" width={width} height={height} rx="6" fill="#0ea5e9" stroke="#0284c7" strokeWidth="2" />
-        <rect x="20" y="15" width={width-40} height="30" rx="2" fill="#ecfccb" stroke="#84cc16" strokeWidth="1" />
-        <text x={width/2} y="35" textAnchor="middle" fill="#3f6212" fontSize="10" fontWeight="bold">{isCharging ? "CHARGING..." : "STANDBY"}</text>
-        <circle cx="25" cy="65" r="4" fill={isCharging ? "#22c55e" : "#1e293b"} />
-        <circle cx="85" cy="65" r="4" fill={hasLoad ? "#ef4444" : "#1e293b"} />
+        <rect x="10" y="20" width={width-20} height="20" rx="4" fill="#f8fafc" stroke="#64748b" strokeWidth="2" />
+        <rect x="25" y="23" width={width-50} height="14" fill="#fef3c7" stroke="#d97706" />
+        <line x1="25" y1="30" x2={width-25} y2="30" stroke="#b45309" strokeWidth="1" strokeDasharray="2 1" />
+        <text x={width/2} y="15" textAnchor="middle" fill="#475569" fontSize="8" fontWeight="bold">DC FUSE</text>
     </g>
 );
 
-const BoxVisual = ({ width, height, label, subLabel, isPowered, error }) => (
+const MotorVisual = ({ width, height, isPowered }) => (
     <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill="white" stroke="#374151" strokeWidth="2" />
-        <rect x="0" y="0" width={width} height="25" rx="4" fill="#f3f4f6" />
-        <text x={width/2} y="18" textAnchor="middle" fill="#111827" fontSize="10" fontWeight="bold">{label}</text>
-        <circle cx={width - 15} cy="12.5" r="4" fill={error ? "#ef4444" : (isPowered ? "#22c55e" : "#d1d5db")} />
-        {error && <text x={width/2} y={height/2 + 5} textAnchor="middle" fill="#ef4444" fontSize="10" fontWeight="bold">{error}</text>}
-        {!error && subLabel && <text x={width/2} y={height/2 + 5} textAnchor="middle" fill="#6b7280" fontSize="10">{subLabel}</text>}
+        <rect x="10" y="20" width={width-20} height={height-40} rx="8" fill="#4b5563" stroke="#374151" strokeWidth="2" />
+        <circle cx={width/2} cy={height/2} r="25" fill="#374151" stroke="#94a3b8" strokeWidth="2" />
+        <g transform={`translate(${width/2}, ${height/2})`}>
+            <path d="M-15 0 L15 0 M0 -15 L0 15" stroke="white" strokeWidth="3" className={isPowered ? "animate-spin" : ""} style={{animationDuration: '0.5s'}} />
+        </g>
+        <text x={width/2} y={15} textAnchor="middle" fill="#475569" fontSize="9" fontWeight="bold">MOTOR</text>
     </g>
 );
 
-const FuseVisual = ({ width, height, isPowered }) => (
+const BulbVisual = ({ width, height, isPowered }) => (
     <g>
-        <rect x="0" y="10" width={width} height="40" rx="4" fill="#f8fafc" stroke="#64748b" strokeWidth="2" />
-        <rect x="5" y="15" width={width-10} height="30" rx="2" fill="#e2e8f0" stroke="#94a3b8" />
-        <rect x="20" y="15" width={width-40} height="30" fill="#fef3c7" stroke="#d97706" />
-        <line x1="20" y1="30" x2={width-20} y2="30" stroke="#b45309" strokeWidth="1.5" strokeDasharray="3 2" />
-        <text x={width/2} y="8" textAnchor="middle" fill="#475569" fontSize="8" fontWeight="bold">DC FUSE</text>
-        {isPowered && <circle cx={width/2} cy="30" r="2" fill="#ef4444" className="animate-pulse" />}
+        <path d={`M ${width/2-10} ${height-10} L ${width/2+10} ${height-10} L ${width/2+15} ${height-30} L ${width/2-15} ${height-30} Z`} fill="#94a3b8" />
+        <circle cx={width/2} cy={height/2-5} r="25" fill={isPowered ? "#fef08a" : "#f1f5f9"} stroke={isPowered ? "#facc15" : "#cbd5e1"} strokeWidth="2" />
+        {isPowered && <circle cx={width/2} cy={height/2-5} r="30" fill="none" stroke="#fef08a" strokeWidth="2" opacity="0.5" className="animate-pulse" />}
     </g>
 );
 
-const LoadVisual = ({ width, height, isPowered, label }) => (
+const SocketVisual = ({ width, height, isPowered }) => (
     <g>
-        <rect x="0" y="0" width={width} height={height} rx="4" fill={isPowered ? "#fef9c3" : "#f8fafc"} stroke="#94a3b8" strokeWidth="2" />
-        <text x={width/2} y={height - 10} textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="bold">{label}</text>
-        {isPowered && <circle cx={width/2} cy={height/2 - 10} r="20" fill="#fde047" opacity="0.3" className="animate-pulse" />}
+        <rect x="0" y="0" width={width} height={height} rx="8" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+        <circle cx={width*0.3} cy={height/2} r="5" fill="#1e293b" />
+        <circle cx={width*0.7} cy={height/2} r="5" fill="#1e293b" />
+        <circle cx={width/2} cy={height*0.75} r="4" fill="#1e293b" />
+        {isPowered && <circle cx={width-15} cy="15" r="3" fill="#22c55e" className="animate-pulse" />}
     </g>
 );
 
-// --- Main App Component ---
+const DCSurgeVisual = ({ width, height }) => (
+    <g>
+        <rect x="0" y="0" width={width} height={height} rx="4" fill="#991b1b" stroke="#450a0a" strokeWidth="2" />
+        <rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="#dc2626" />
+        <text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">DC SPD</text>
+    </g>
+);
+
+const ACSurgeVisual = ({ width, height }) => (
+    <g>
+        <rect x="0" y="0" width={width} height={height} rx="4" fill="#166534" stroke="#052e16" strokeWidth="2" />
+        <rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="#15803d" />
+        <text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">AC SPD</text>
+    </g>
+);
+
+const BoxVisual = ({ width, height, label, isPowered }) => (
+    <g>
+        <rect x="0" y="0" width={width} height={height} rx="6" fill="white" stroke="#374151" strokeWidth="2" />
+        <rect x="0" y="0" width={width} height="30" rx="6" fill="#f1f5f9" />
+        <text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="11" fontWeight="bold">{label}</text>
+        <circle cx={width - 15} cy="15" r="5" fill={isPowered ? "#22c55e" : "#cbd5e1"} />
+    </g>
+);
+
+const GroundBarVisual = ({ width, height }) => (
+    <g>
+        <rect x="0" y="0" width={width} height={height} rx="4" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
+        {[25, 55, 85, 115, 145].map(cx => (
+            <circle key={cx} cx={cx} cy={height/2} r="5" fill="#475569" stroke="#1e293b" strokeWidth="1" />
+        ))}
+    </g>
+);
+
+const MeterVisual = ({ width, height, isPowered, volts }) => (
+    <g>
+        <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#0f172a" strokeWidth="2" />
+        <rect x="10" y="10" width={width-20} height="50" rx="2" fill="#064e3b" />
+        <text x={width/2} y="45" textAnchor="middle" fill={isPowered ? "#4ade80" : "#065f46"} fontSize="24" fontFamily="monospace" fontWeight="bold">
+            {isPowered ? volts.toFixed(1) : "00.0"}
+        </text>
+        <text x={width/2} y="85" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="bold">VOLT METER</text>
+    </g>
+);
+
+// --- Main App ---
 export default function App() {
     const [components, setComponents] = useState([]);
     const [wires, setWires] = useState([]); 
@@ -229,10 +205,9 @@ export default function App() {
     const [dragInfo, setDragInfo] = useState(null); 
     const [tempWire, setTempWire] = useState(null);
     const [hoveredTerm, setHoveredTerm] = useState(null);
-    const [batteryState, setBatteryState] = useState({}); 
     const [selectedObj, setSelectedObj] = useState(null); 
     const [isRunning, setIsRunning] = useState(false);
-    const [simResults, setSimResults] = useState({ voltages: new Map(), wireCurrents: new Map(), states: {} });
+    const [simResults, setSimResults] = useState({ voltages: new Map(), states: {} });
 
     const canvasRef = useRef(null);
 
@@ -249,14 +224,12 @@ export default function App() {
     useEffect(() => {
         const nets = [];
         const getNet = (id) => nets.find(s => s.has(id));
-        
         components.forEach(c => {
             const spec = SPECS[c.type];
-            if(spec.terminals) spec.terminals.forEach(t => {
+            if(spec?.terminals) spec.terminals.forEach(t => {
                 const s = new Set(); s.add(`${c.id}_${t.id}`); nets.push(s);
             });
         });
-
         wires.forEach(w => {
             const n1 = getNet(`${w.from}_${w.fromTerm}`);
             const n2 = getNet(`${w.to}_${w.toTerm}`);
@@ -265,50 +238,26 @@ export default function App() {
 
         const netVoltages = new Map();
         const compStates = {};
-        const wireCurrents = new Map();
 
-        // 1. Sources
-        components.filter(c => c.type === 'panel').forEach(pv => {
-            const v = 25 * (sunIntensity/100);
+        components.filter(c => c.type === COMPONENT_TYPES.PANEL).forEach(pv => {
+            const v = 25 * (sunIntensity/100) * ((pv.efficiency || 100) / 100);
             const pos = getNet(`${pv.id}_pos`); const neg = getNet(`${pv.id}_neg`);
             if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
             netVoltages.set(pos, Math.max(netVoltages.get(pos)||0, (netVoltages.get(neg)||0) + v));
             compStates[pv.id] = { isPowered: v > 5 };
         });
 
-        components.filter(c => c.type === 'battery').forEach(bat => {
-            const v = (batteryState[bat.id]?.soc || 0) > 0 ? 12.8 : 0;
-            const pos = getNet(`${bat.id}_pos`); const neg = getNet(`${bat.id}_neg`);
-            if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
-            netVoltages.set(pos, Math.max(netVoltages.get(pos)||0, (netVoltages.get(neg)||0) + v));
-            compStates[bat.id] = { isPowered: v > 0 };
-        });
-
-        components.filter(c => c.type === 'ac_source').forEach(src => {
+        components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).forEach(src => {
             const l = getNet(`${src.id}_l`); const n = getNet(`${src.id}_n`);
             if(!netVoltages.has(n)) netVoltages.set(n, 0);
             netVoltages.set(l, 220);
             compStates[src.id] = { isPowered: true };
         });
 
-        // 2. Converters & Ground Bar Logic
         for(let i=0; i<8; i++) {
             components.forEach(c => {
-                if(c.type === 'ground_bar') {
-                    const spec = SPECS[c.type];
-                    const firstNet = getNet(`${c.id}_${spec.terminals[0].id}`);
-                    spec.terminals.forEach(t => {
-                        const tNet = getNet(`${c.id}_${t.id}`);
-                        if(tNet && tNet !== firstNet) {
-                            tNet.forEach(i => firstNet.add(i));
-                            nets.splice(nets.indexOf(tNet), 1);
-                        }
-                    });
-                    compStates[c.id] = { isPowered: true };
-                }
-
-                if(c.type === 'fuse' || c.type === 'breaker' || c.type === 'breaker_dc') {
-                    const pairs = c.type === 'fuse' ? [['in', 'out']] : [['in_1', 'out_1'], ['in_2', 'out_2']];
+                if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE].includes(c.type)) {
+                    const pairs = c.type === COMPONENT_TYPES.AC_BREAKER ? [['in_l', 'out_l'], ['in_n', 'out_n']] : (c.type === COMPONENT_TYPES.FUSE ? [['in', 'out']] : [['in_1', 'out_1'], ['in_2', 'out_2']]);
                     pairs.forEach(([iId, oId]) => {
                         const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
                         if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
@@ -316,229 +265,132 @@ export default function App() {
                     });
                     compStates[c.id] = { isPowered: true };
                 }
-                
-                if(['dc_surge', 'ac_surge'].includes(c.type)) {
-                    compStates[c.id] = { isPowered: true };
-                }
-
-                if(c.type === 'ac_breaker') {
-                    const pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
-                    pairs.forEach(([iId, oId]) => {
-                        const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
-                        if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
-                        else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
-                    });
-                    compStates[c.id] = { isPowered: true };
-                }
-
-                if(c.type === 'energy_meter') {
-                    const pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
-                    pairs.forEach(([iId, oId]) => {
-                        const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
-                        if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
-                        else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
-                    });
+                if(c.type === COMPONENT_TYPES.ENERGY_METER) {
                     const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
-                    const v = (netVoltages.get(l)||0) - (netVoltages.get(n)||0);
-                    compStates[c.id] = { isPowered: Math.abs(v) > 20, volts: Math.abs(v) };
+                    const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
+                    compStates[c.id] = { isPowered: v > 20, volts: v };
                 }
-
-                if(c.type === 'charger') {
-                    const pvP = getNet(`${c.id}_pv_pos`); const pvN = getNet(`${c.id}_pv_neg`);
-                    const batP = getNet(`${c.id}_bat_pos`); const batN = getNet(`${c.id}_bat_neg`);
-                    const loadP = getNet(`${c.id}_load_pos`); const loadN = getNet(`${c.id}_load_neg`);
-                    const vPV = (netVoltages.get(pvP)||0) - (netVoltages.get(pvN)||0);
-                    let isCharging = false;
-                    if(vPV > 13) {
-                        if(!netVoltages.has(batN)) netVoltages.set(batN, 0);
-                        netVoltages.set(batP, Math.max(netVoltages.get(batP)||0, (netVoltages.get(batN)||0) + 14.4));
-                        isCharging = true;
-                    }
-                    const vBat = (netVoltages.get(batP)||0) - (netVoltages.get(batN)||0);
-                    if(vBat > 11) {
-                        if(!netVoltages.has(loadN)) netVoltages.set(loadN, 0);
-                        netVoltages.set(loadP, Math.max(netVoltages.get(loadP)||0, (netVoltages.get(loadN)||0) + vBat));
-                    }
-                    compStates[c.id] = { isPowered: true, isCharging, hasLoad: vBat > 11 };
+                if(c.type === COMPONENT_TYPES.CHARGER) {
+                    const pvp = getNet(`${c.id}_pv_pos`); const batp = getNet(`${c.id}_bat_pos`);
+                    const vpv = netVoltages.get(pvp) || 0;
+                    if(vpv > 13) netVoltages.set(batp, 14.4);
+                    compStates[c.id] = { isCharging: vpv > 13, hasLoad: false };
                 }
-
-                if(c.type === 'inverter') {
-                    const dcp = getNet(`${c.id}_dc_pos`); const dcn = getNet(`${c.id}_dc_neg`);
+                if(c.type === COMPONENT_TYPES.INVERTER) {
                     const acl = getNet(`${c.id}_ac_l`); const acn = getNet(`${c.id}_ac_n`);
-                    const vDC = (netVoltages.get(dcp)||0) - (netVoltages.get(dcn)||0);
-                    if(vDC >= 11 && vDC <= 30) {
-                        if(!netVoltages.has(acn)) netVoltages.set(acn, 0);
-                        netVoltages.set(acl, 220);
-                        compStates[c.id] = { isPowered: true };
-                    } else {
-                        compStates[c.id] = { isPowered: false, error: vDC > 30 ? 'Over V' : vDC > 0 ? 'Low V' : '' };
-                    }
+                    const dcp = getNet(`${c.id}_dc_pos`); const dcn = getNet(`${c.id}_dc_neg`);
+                    const vdc = (netVoltages.get(dcp)||0) - (netVoltages.get(dcn)||0);
+                    if(vdc > 11) { netVoltages.set(acl, 220); if(!netVoltages.has(acn)) netVoltages.set(acn, 0); compStates[c.id] = { isPowered: true }; }
                 }
-
-                if(['socket', 'bulb', 'motor'].includes(c.type)) {
+                if(['bulb','socket','motor'].includes(c.type)) {
                     const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
-                    const v = (netVoltages.get(l)||0) - (netVoltages.get(n)||0);
-                    const reqV = c.type === 'motor' ? 10 : 200;
-                    compStates[c.id] = { isPowered: Math.abs(v) >= reqV };
+                    const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
+                    compStates[c.id] = { isPowered: v > 20 };
                 }
             });
         }
+        setSimResults({ voltages: netVoltages, states: compStates });
+    }, [components, wires, sunIntensity]);
 
-        // 3. Current
-        if(isRunning) {
-            components.filter(c => ['socket', 'bulb', 'motor'].includes(c.type) && compStates[c.id]?.isPowered).forEach(load => {
-                const wts = load.watts || SPECS[load.type].defaultWatts;
-                const vref = SPECS[load.type].voltageRef || 220;
-                const amps = wts / vref;
-                const lNet = getNet(`${load.id}_l`);
-                wires.forEach(w => {
-                    if(getNet(`${w.from}_${w.fromTerm}`) === lNet) {
-                        wireCurrents.set(w.id, (wireCurrents.get(w.id)||0) + amps);
-                    }
-                });
-            });
-
-            components.filter(c => c.type === 'energy_meter').forEach(m => {
-                const outL = getNet(`${m.id}_out_l`);
-                let totalAmps = 0;
-                wires.forEach(w => {
-                    if(getNet(`${w.from}_${w.fromTerm}`) === outL) totalAmps += wireCurrents.get(w.id) || 0;
-                });
-                compStates[m.id].amps = totalAmps;
-                compStates[m.id].watts = totalAmps * (compStates[m.id].volts || 0);
-            });
-        }
-
-        setSimResults({ voltages: netVoltages, wireCurrents, states: compStates, nets });
-    }, [components, wires, sunIntensity, isRunning, batteryState]);
-
+    // --- Interaction ---
     const handleGlobalMove = (e) => {
         if(e.touches) e.preventDefault(); 
         const { x, y } = getLocalPos(e);
-        let closest = null; let minDist = 30;
+        if(dragInfo?.type === 'comp') setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: x - dragInfo.offsetX, y: y - dragInfo.offsetY} : c));
+        if(dragInfo?.type === 'wireHandle') setWires(prev => prev.map(w => w.id === dragInfo.id ? { ...w, offsetX: x - dragInfo.baseX, offsetY: y - dragInfo.baseY } : w));
+        if(tempWire) setTempWire(prev => ({...prev, x2: x, y2: y}));
+        
+        let hit = null;
         components.forEach(c => {
             const spec = SPECS[c.type];
-            if (spec.terminals) {
-                spec.terminals.forEach(t => {
-                    const d = Math.hypot(x - (c.x + t.x), y - (c.y + spec.height + 5));
-                    if(d < minDist) { minDist = d; closest = { compId: c.id, termId: t.id }; }
-                });
-            }
+            spec.terminals?.forEach(t => {
+                const d = Math.hypot(x - (c.x + t.x), y - (c.y + spec.height + 5));
+                if(d < 20) hit = { compId: c.id, termId: t.id };
+            });
         });
-        setHoveredTerm(closest);
-
-        if(dragInfo?.type === 'comp') setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: x - dragInfo.offsetX, y: y - dragInfo.offsetY} : c));
-        if(dragInfo?.type === 'wireHandle') {
-            setWires(prev => prev.map(w => w.id === dragInfo.id ? {
-                ...w, 
-                offsetX: x - dragInfo.baseX,
-                offsetY: y - dragInfo.baseY
-            } : w));
-        }
-        if(tempWire) {
-            if(closest) {
-                const c = components.find(comp => comp.id === closest.compId);
-                const t = SPECS[c.type].terminals.find(term => term.id === closest.termId);
-                setTempWire(prev => ({...prev, x2: c.x + t.x, y2: c.y + SPECS[c.type].height + 5}));
-            } else setTempWire(prev => ({...prev, x2: x, y2: y}));
-        }
+        setHoveredTerm(hit);
     };
 
     const handleGlobalMouseUp = () => {
-        if(tempWire) {
-            if(hoveredTerm && (hoveredTerm.compId !== tempWire.from || hoveredTerm.termId !== tempWire.fromTerm)) {
+        if(tempWire && hoveredTerm) {
+            if(hoveredTerm.compId !== tempWire.from || hoveredTerm.termId !== tempWire.fromTerm) {
                 setWires(prev => [...prev, { id: Date.now(), from: tempWire.from, fromTerm: tempWire.fromTerm, to: hoveredTerm.compId, toTerm: hoveredTerm.termId, offsetX: 0, offsetY: 40 }]);
             }
-            setTempWire(null);
         }
-        setDragInfo(null);
+        setTempWire(null); setDragInfo(null);
     };
 
     const addComponent = (type) => {
-        const id = Date.now().toString();
-        setComponents([...components, { id, type, x: 100, y: 100, watts: SPECS[type].defaultWatts || 0 }]);
-        if(type === 'battery') setBatteryState(prev => ({...prev, [id]: { soc: 50, isCharging: false }}));
-        setIsRunning(false);
+        const spec = SPECS[type];
+        if(!spec) return;
+        setComponents(prev => [...prev, { id: Date.now().toString(), type, x: 100, y: 100, watts: spec.defaultWatts || 100, efficiency: 100, capacity: 100 }]);
     };
 
-    const deleteSelected = () => {
-        if(!selectedObj) return;
-        if(selectedObj.type === 'comp') {
-            setComponents(prev => prev.filter(c => c.id !== selectedObj.id));
-            setWires(prev => prev.filter(w => w.from !== selectedObj.id && w.to !== selectedObj.id));
-        } else setWires(prev => prev.filter(w => w.id !== selectedObj.id));
+    const deleteObj = (obj) => {
+        if(!obj) return;
+        if(obj.type === 'comp') {
+            setComponents(prev => prev.filter(c => c.id !== obj.id));
+            setWires(prev => prev.filter(w => w.from !== obj.id && w.to !== obj.id));
+        } else setWires(prev => prev.filter(w => w.id !== obj.id));
         setSelectedObj(null);
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 select-none overflow-hidden touch-none" onMouseMove={handleGlobalMove} onMouseUp={handleGlobalMouseUp} onClick={() => setSelectedObj(null)}>
-            <style>{`
-                .grid-bg {
-                    background-image: 
-                        linear-gradient(to right, #e2e8f0 1px, transparent 1px),
-                        linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
-                    background-size: 24px 24px;
-                }
-            `}</style>
+        <div className="flex h-screen bg-slate-100 overflow-hidden" onMouseMove={handleGlobalMove} onMouseUp={handleGlobalMouseUp} onClick={() => setSelectedObj(null)}>
+            <style>{` .grid-bg { background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 24px 24px; } `}</style>
             
-            {/* Sidebar */}
-            <div className="w-64 bg-white border-r shadow-xl flex flex-col z-30" onClick={e => e.stopPropagation()}>
-                <div className="p-4 bg-gray-900 text-white flex items-center gap-2">
-                    <Zap className="text-yellow-400 fill-current"/> <span className="font-bold">Solar Sim Thai</span>
-                </div>
+            <div className="w-64 bg-white border-r shadow-2xl flex flex-col z-40" onClick={e => e.stopPropagation()}>
+                <div className="p-4 bg-slate-900 text-white font-bold flex gap-2"><Zap className="text-yellow-400 fill-current"/> Solar Sim Pro</div>
                 <div className="p-4 flex-1 overflow-y-auto space-y-4">
-                    <button onClick={() => setIsRunning(!isRunning)} className={`w-full p-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${isRunning ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                        {isRunning ? <><RotateCcw size={18}/> หยุด / แก้ไข</> : <><Play size={18}/> เริ่มจำลอง</>}
+                    <button onClick={() => setIsRunning(!isRunning)} className={`w-full p-3 rounded-lg font-bold flex items-center justify-center gap-2 ${isRunning ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
+                        {isRunning ? <RotateCcw size={18}/> : <Play size={18}/>} {isRunning ? 'หยุดการทำงาน' : 'เริ่มจำลอง'}
                     </button>
-                    
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs font-bold text-blue-800">
-                        ความเข้มแสง: {sunIntensity}%
-                        <input type="range" min="0" max="100" value={sunIntensity} onChange={(e) => setSunIntensity(parseInt(e.target.value))} className="w-full mt-2 cursor-pointer accent-blue-600"/>
+                    <div className="p-3 bg-blue-50 rounded-xl text-xs font-bold text-blue-800 uppercase tracking-widest">
+                        ความเข้มแสง: {sunIntensity}% <input type="range" min="0" max="100" value={sunIntensity} onChange={(e) => setSunIntensity(parseInt(e.target.value))} className="w-full mt-1 accent-blue-600"/>
                     </div>
-
+                    
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">แหล่งจ่ายไฟ</label>
-                        <button onClick={() => addComponent('panel')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Sun size={14}/> แผงโซล่าเซลล์</button>
-                        <button onClick={() => addComponent('ac_source')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Zap size={14}/> Grid 220V</button>
-                        <button onClick={() => addComponent('battery')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Battery size={14}/> แบตเตอรี่</button>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">แหล่งจ่าย/หลัก</label>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.PANEL)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Sun size={14}/> แผงโซล่าเซลล์</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.AC_SOURCE)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Zap size={14}/> AC Grid 220V</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.BATTERY)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Battery size={14}/> แบตเตอรี่ 12V</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.CHARGER)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><BatteryCharging size={14}/> ชาร์จเจอร์</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.INVERTER)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Activity size={14}/> อินเวอร์เตอร์</button>
                         
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2 block">อุปกรณ์หลัก</label>
-                        <button onClick={() => addComponent('charger')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><BatteryCharging size={14}/> ชาร์จเจอร์</button>
-                        <button onClick={() => addComponent('inverter')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Activity size={14}/> อินเวอร์เตอร์</button>
-                        <button onClick={() => addComponent('energy_meter')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Gauge size={14}/> Energy Meter</button>
-
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2 block">ระบบป้องกัน</label>
-                        <button onClick={() => addComponent('breaker_dc')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Power size={14}/> DC Breaker</button>
-                        <button onClick={() => addComponent('ac_breaker')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Power size={14}/> AC Breaker</button>
-                        <button onClick={() => addComponent('dc_surge')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><ShieldAlert size={14}/> DC SPD</button>
-                        <button onClick={() => addComponent('ac_surge')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><ShieldCheck size={14}/> AC SPD</button>
-                        <button onClick={() => addComponent('fuse')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><ShieldCheck size={14}/> DC Fuse</button>
-                        <button onClick={() => addComponent('ground_bar')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Database size={14}/> Ground Bar</button>
-
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2 block">โหลด</label>
-                        <button onClick={() => addComponent('bulb')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Lightbulb size={14}/> หลอดไฟ</button>
-                        <button onClick={() => addComponent('socket')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Power size={14}/> เต้ารับ</button>
-                        <button onClick={() => addComponent('motor')} className="w-full flex items-center gap-2 p-2 hover:bg-blue-50 rounded-lg text-left text-xs font-medium text-gray-700"><Fan size={14}/> มอเตอร์</button>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mt-2 block">ป้องกัน/มิเตอร์</label>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.BREAKER_DC)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Power size={14}/> DC Breaker</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.AC_BREAKER)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Power size={14}/> AC Breaker</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.DC_SURGE)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><ShieldAlert size={14}/> DC Surge SPD</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.AC_SURGE)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><ShieldCheck size={14}/> AC Surge SPD</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.FUSE)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><ShieldCheck size={14}/> DC Fuse</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.GROUND_BAR)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Database size={14}/> Ground Bar</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.ENERGY_METER)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Gauge size={14}/> Energy Meter</button>
+                        
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mt-2 block">โหลดไฟฟ้า</label>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.BULB)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Lightbulb size={14}/> หลอดไฟ</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.SOCKET)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Power size={14}/> เต้ารับ</button>
+                        <button onClick={() => addComponent(COMPONENT_TYPES.MOTOR)} className="w-full text-left p-2 hover:bg-slate-100 rounded text-xs flex items-center gap-2"><Fan size={14}/> มอเตอร์</button>
                     </div>
                 </div>
             </div>
 
-            {/* Canvas Area */}
-            <div ref={canvasRef} className="flex-1 relative overflow-hidden grid-bg">
-                
-                {/* Settings Panel */}
-                {selectedObj && selectedObj.type === 'comp' && ['bulb', 'motor', 'socket'].includes(components.find(c => c.id === selectedObj.id)?.type) && (
-                    <div className="absolute top-4 right-4 z-40 bg-white p-4 rounded-xl shadow-2xl border w-60" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-3 font-bold text-sm">
-                            <span><Settings size={14} className="inline mr-1"/> ตั้งค่าวัตต์</span>
-                            <button onClick={deleteSelected} className="text-red-500"><Trash2 size={16}/></button>
+            <div ref={canvasRef} className="flex-1 relative grid-bg overflow-hidden">
+                {selectedObj && selectedObj.type === 'comp' && (
+                    <div className="absolute top-4 right-4 z-50 bg-white p-5 rounded-2xl shadow-2xl border w-72" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Settings size={18}/> {SPECS[components.find(c => c.id === selectedObj.id)?.type]?.label}</h3>
+                            <button onClick={() => deleteObj(selectedObj)} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><Trash2 size={20}/></button>
                         </div>
-                        <input type="range" min="10" max="2000" step="10" value={components.find(c => c.id === selectedObj.id)?.watts} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? {...c, watts: parseInt(e.target.value)} : c))} className="w-full accent-blue-600" onClick={e => e.stopPropagation()}/>
-                        <div className="text-center text-blue-600 font-bold mt-1">{components.find(c => c.id === selectedObj.id)?.watts} W</div>
+                        {SPECS[components.find(c => c.id === selectedObj.id)?.type]?.editable && (
+                            <div className="space-y-4">
+                                <label className="text-xs font-bold text-slate-400">ปรับค่า ({SPECS[components.find(c => c.id === selectedObj.id)?.type].unit})</label>
+                                <input type="range" min="10" max="2000" step="10" value={components.find(c => c.id === selectedObj.id)?.[SPECS[components.find(c => c.id === selectedObj.id)?.type].editable]} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? { ...c, [SPECS[c.type].editable]: parseInt(e.target.value) } : c))} className="w-full accent-blue-600"/>
+                                <div className="text-center font-bold text-blue-600 text-2xl">{components.find(c => c.id === selectedObj.id)?.[SPECS[components.find(c => c.id === selectedObj.id)?.type].editable]} {SPECS[components.find(c => c.id === selectedObj.id)?.type].unit}</div>
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {/* Simulation Visualization */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
                     {wires.map(w => {
                         const c1 = components.find(c => c.id === w.from); const c2 = components.find(c => c.id === w.to);
@@ -547,43 +399,16 @@ export default function App() {
                         const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
                         const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
                         const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
-                        
-                        const offX = w.offsetX || 0;
-                        const offY = w.offsetY || 40;
+                        const offX = w.offsetX || 0; const offY = w.offsetY || 40;
                         const path = getWirePath(p1.x, p1.y, p2.x, p2.y, offX, offY);
                         const isSel = selectedObj?.type === 'wire' && selectedObj.id === w.id;
-                        const color = ['red','brown'].includes(t1.color) ? '#ef4444' : (t1.color === 'green' ? '#22c55e' : '#1f2937');
-                        const midY = Math.max(p1.y, p2.y) + offY;
-                        const midX = (p1.x + p2.x) / 2 + offX;
-
                         return (
                             <g key={w.id} className="pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}>
                                 <path d={path} stroke="transparent" strokeWidth="20" fill="none" />
-                                {isSel && <path d={path} stroke="#fbbf24" strokeWidth="6" fill="none" className="animate-pulse opacity-50"/>}
-                                <path d={path} stroke={color} strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                                
-                                {/* 2D Adjustment Handle */}
-                                <g transform={`translate(${midX}, ${midY})`}>
-                                    <circle r="12" fill="white" stroke={isSel ? "#ef4444" : "#3b82f6"} strokeWidth="2" className="shadow-lg" />
-                                    {isSel ? (
-                                        <g onClick={(e) => { e.stopPropagation(); deleteSelected(); }}>
-                                            <circle r="12" fill="#ef4444" />
-                                            <X size={14} className="text-white -translate-x-[7px] -translate-y-[7px]" />
-                                        </g>
-                                    ) : (
-                                        <Move size={14} className="text-blue-500 -translate-x-[7px] -translate-y-[7px]" 
-                                            {...bindStartEvents((e) => { 
-                                                e.stopPropagation(); 
-                                                const {x, y} = getLocalPos(e);
-                                                setDragInfo({ 
-                                                    type: 'wireHandle', 
-                                                    id: w.id, 
-                                                    baseX: (p1.x + p2.x) / 2, 
-                                                    baseY: Math.max(p1.y, p2.y) 
-                                                }); 
-                                            })}
-                                        />
-                                    )}
+                                <path d={path} stroke={isSel ? "#fbbf24" : (['red','brown'].includes(t1.color) ? '#ef4444' : (t1.color === 'blue' ? '#2563eb' : (t1.color === 'green' ? '#22c55e' : '#1e293b')))} strokeWidth={isSel ? 5 : 2.5} fill="none" strokeLinecap="round" />
+                                <g transform={`translate(${(p1.x+p2.x)/2 + offX}, ${Math.max(p1.y, p2.y) + offY})`}>
+                                    <circle r="12" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-lg" />
+                                    <Move size={14} className="text-blue-500 -translate-x-[7px] -translate-y-[7px]" onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'wireHandle', id: w.id, baseX: (p1.x + p2.x) / 2, baseY: Math.max(p1.y, p2.y) }); }} />
                                 </g>
                             </g>
                         );
@@ -591,44 +416,35 @@ export default function App() {
                     {tempWire && <path d={getWirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2)} stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="5 5" fill="none" />}
                 </svg>
 
-                {/* Components Rendering */}
                 {components.map(comp => {
                     const spec = SPECS[comp.type];
                     const state = simResults.states[comp.id] || {};
                     const isSel = selectedObj?.type === 'comp' && selectedObj.id === comp.id;
                     return (
-                        <div key={comp.id} className="absolute group z-10" style={{left: comp.x, top: comp.y}}>
-                            <div {...bindStartEvents((e) => { 
-                                    const {x,y} = getLocalPos(e); 
-                                    setDragInfo({ type: 'comp', id: comp.id, offsetX: x-comp.x, offsetY: y-comp.y }); 
-                                    e.stopPropagation(); 
-                                    setSelectedObj({ type: 'comp', id: comp.id }); 
-                                })} 
-                                className={`relative transition-all ${isSel ? 'ring-2 ring-yellow-400 ring-offset-4 rounded-lg shadow-2xl' : ''}`}>
-                                <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
-                                    {comp.type === 'panel' && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} />}
-                                    {comp.type === 'battery' && <BatteryVisual width={spec.width} height={spec.height} soc={batteryState[comp.id]?.soc} isCharging={batteryState[comp.id]?.isCharging} />}
-                                    {comp.type === 'charger' && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
-                                    {comp.type === 'fuse' && <FuseVisual width={spec.width} height={spec.height} isPowered={state.isPowered}/>}
-                                    {comp.type === 'dc_surge' && <DCSurgeVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                    {comp.type === 'ac_breaker' && <ACBreakerVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                    {comp.type === 'ac_surge' && <SurgeVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                    {comp.type === 'energy_meter' && <MeterVisual width={spec.width} height={spec.height} isPowered={state.isPowered} volts={state.volts || 0} amps={state.amps || 0} watts={state.watts || 0} />}
-                                    {comp.type === 'ac_source' && <ACSourceVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                    {comp.type === 'ground_bar' && <GroundBarVisual width={spec.width} height={spec.height} />}
-                                    
-                                    {(comp.type === 'inverter' || comp.type === 'breaker' || comp.type === 'breaker_dc') && <BoxVisual width={spec.width} height={spec.height} label={spec.label.split(' (')[0]} isPowered={state.isPowered} error={state.error} />}
-                                    {['bulb','socket','motor'].includes(comp.type) && <LoadVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label={`${spec.label.split(' (')[0]} ${comp.watts}W`} />}
-                                    
+                        <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
+                            <div 
+                                onMouseDown={(e) => { e.stopPropagation(); const {x,y} = getLocalPos(e); setDragInfo({ type: 'comp', id: comp.id, offsetX: x-comp.x, offsetY: y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }}
+                                className={`relative cursor-move ${isSel ? 'ring-2 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105 transition-all' : ''}`}
+                            >
+                                {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-4 -right-4 bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 z-50"><X size={16} strokeWidth={3}/></button>}
+                                <svg width={spec.width} height={spec.height + 40} className="overflow-visible">
+                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} efficiency={comp.efficiency} />}
+                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc || 75} />}
+                                    {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
+                                    {comp.type === COMPONENT_TYPES.AC_SOURCE && <ACSourceVisual width={spec.width} height={spec.height} isPowered={true} />}
+                                    {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
+                                    {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                    {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                    {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                    {comp.type === COMPONENT_TYPES.DC_SURGE && <DCSurgeVisual width={spec.width} height={spec.height} />}
+                                    {comp.type === COMPONENT_TYPES.AC_SURGE && <ACSurgeVisual width={spec.width} height={spec.height} />}
+                                    {comp.type === COMPONENT_TYPES.GROUND_BAR && <GroundBarVisual width={spec.width} height={spec.height} />}
+                                    {comp.type === COMPONENT_TYPES.ENERGY_METER && <MeterVisual width={spec.width} height={spec.height} isPowered={state.isPowered} volts={state.volts || 0} />}
+                                    {['inverter','breaker_dc','ac_breaker'].includes(comp.type) && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
                                     {spec.terminals?.map(t => (
                                         <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} isHovered={hoveredTerm?.compId === comp.id && hoveredTerm?.termId === t.id} onInteract={() => setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x+t.x, y1: comp.y+spec.height+5, x2: comp.x+t.x, y2: comp.y+spec.height+5 })} />
                                     ))}
                                 </svg>
-                                {isSel && (
-                                    <button onClick={(e) => { e.stopPropagation(); deleteSelected(); }} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition-transform scale-125">
-                                        <X size={14}/>
-                                    </button>
-                                )}
                             </div>
                         </div>
                     );
