@@ -39,7 +39,7 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Sun, Trash2, Zap, Plus, Settings, Power, Lightbulb, Play, RotateCcw, AlertTriangle, CheckCircle, GripHorizontal, Activity, Battery, Fan, Cylinder, BookOpen, X } from 'lucide-react';
+        import { Sun, Trash2, Zap, Plus, Settings, Power, Lightbulb, Play, RotateCcw, AlertTriangle, CheckCircle, GripHorizontal, Activity, Battery, Fan, Cylinder, BookOpen, X, BatteryCharging } from 'lucide-react';
 
         // --- ค่าคงที่และประเภทอุปกรณ์ (Constants & Types) ---
         const COMPONENT_TYPES = {
@@ -118,14 +118,32 @@
         </g>
         );
 
-        const BatteryVisual = ({ width, height }) => (
+        const BatteryVisual = ({ width, height, soc, isCharging }) => (
         <g>
             <rect x="5" y="10" width={width-10} height={height-10} rx="4" fill="#1f2937" stroke="#374151" strokeWidth="2" />
             <rect x="20" y="0" width="15" height="10" fill="#dc2626" />
             <rect x={width-35} y="0" width="15" height="10" fill="#111827" />
-            <rect x="15" y="40" width={width-30} height={50} rx="2" fill="#374151" />
-            <text x={width/2} y="65" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">12V 100Ah</text>
-            <text x={width/2} y="80" textAnchor="middle" fill="#9ca3af" fontSize="10">Deep Cycle</text>
+            
+            {/* Battery Level Display */}
+            <rect x="15" y="30" width={width-30} height={50} rx="2" fill="#374151" stroke="#4b5563" />
+            
+            {/* Battery Bars */}
+            <rect x="18" y="33" width={(width-36) * (soc / 100)} height={44} rx="1" fill={soc > 20 ? "#22c55e" : "#ef4444"} className="transition-all duration-300" />
+            
+            {/* Text Overlay */}
+            <text x={width/2} y="60" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{textShadow: '0 1px 2px black'}}>
+                {Math.round(soc)}%
+            </text>
+            
+            {/* Status Icons */}
+            {isCharging && (
+                <g transform={`translate(${width/2 - 8}, 85)`}>
+                    <circle r="8" fill="#eab308" />
+                    <path d="M-2 -4 L2 0 L-1 0 L1 4 L-3 0 L0 0 Z" fill="black" transform="scale(1.5)" />
+                </g>
+            )}
+            
+            <text x={width/2} y="100" textAnchor="middle" fill="#9ca3af" fontSize="9">12V 100Ah</text>
         </g>
         );
 
@@ -140,14 +158,25 @@
         </g>
         );
 
-        const BoxVisual = ({ width, height, label, subLabel, isPowered }) => (
+        const BoxVisual = ({ width, height, label, subLabel, isPowered, error }) => (
         <g>
             <rect x="0" y="0" width={width} height={height} rx="4" fill="white" stroke="#374151" strokeWidth="2" className="shadow-sm" />
             <rect x="0" y="0" width={width} height="25" rx="4" fill="#f3f4f6" stroke="none" />
             <line x1="0" y1="25" x2={width} y2="25" stroke="#e5e7eb" strokeWidth="1" />
             <text x={width/2} y="18" textAnchor="middle" fill="#111827" fontSize="10" fontWeight="bold">{label}</text>
-            <circle cx={width - 15} cy="12.5" r="4" fill={isPowered ? "#22c55e" : "#ef4444"} stroke="#d1d5db" strokeWidth="1" />
-            {subLabel && <text x={width/2} y={height/2 + 5} textAnchor="middle" fill="#6b7280" fontSize="10">{subLabel}</text>}
+            
+            {/* Status LED */}
+            <circle cx={width - 15} cy="12.5" r="4" fill={error ? "#ef4444" : (isPowered ? "#22c55e" : "#d1d5db")} stroke="#9ca3af" strokeWidth="1" />
+            
+            {/* Error Message Overlay */}
+            {error && (
+                <g>
+                    <rect x="10" y={height/2 - 12} width={width-20} height={24} rx="4" fill="rgba(220, 38, 38, 0.9)" />
+                    <text x={width/2} y={height/2 + 4} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{error}</text>
+                </g>
+            )}
+
+            {subLabel && !error && <text x={width/2} y={height/2 + 5} textAnchor="middle" fill="#6b7280" fontSize="10">{subLabel}</text>}
         </g>
         );
 
@@ -326,6 +355,9 @@
         const [dragInfo, setDragInfo] = useState(null); 
         const [tempWire, setTempWire] = useState(null);
         
+        // Battery State (SoC: 0-100)
+        const [batteryState, setBatteryState] = useState({}); // { [id]: { soc: 50, isCharging: false } }
+
         // Selection & Properties
         const [selectedObj, setSelectedObj] = useState(null); // { type: 'comp'|'wire', id: string }
         
@@ -412,16 +444,19 @@
                 compStates[pv.id] = { outputV: v, isPowered: v > 5 };
             });
 
-            // แบตเตอรี่ & Capacitor
+            // แบตเตอรี่ (Battery) - Updated for SoC
             components.filter(c => c.type === COMPONENT_TYPES.BATTERY).forEach(bat => {
-                const v = 12.8; 
+                const soc = batteryState[bat.id]?.soc ?? 50;
+                const isDead = soc <= 0;
+                const v = isDead ? 0 : 12.8; 
+                
                 const posNet = getNet(`${bat.id}_pos`);
                 const negNet = getNet(`${bat.id}_neg`);
                 if(!netVoltages.has(negNet)) netVoltages.set(negNet, 0);
                 const currentPosV = netVoltages.get(posNet) || 0;
                 const newPosV = (netVoltages.get(negNet) || 0) + v;
                 netVoltages.set(posNet, Math.max(currentPosV, newPosV));
-                compStates[bat.id] = { outputV: v, isPowered: true };
+                compStates[bat.id] = { outputV: v, isPowered: !isDead };
             });
 
             // Capacitor just acts as a pass-through node logic-wise here, but we could add charge logic visual
@@ -438,13 +473,17 @@
                         const acN = getNet(`${c.id}_ac_n`);
                         const vIn = (netVoltages.get(dcPos) || 0) - (netVoltages.get(dcNeg) || 0);
                         
-                        if(vIn > 11 && vIn < 45) { 
+                        // Modified Inverter Logic: Protection cut-offs
+                        if(vIn > 45) {
+                            compStates[c.id] = { isPowered: false, error: 'Over V' };
+                            netVoltages.set(acL, 0);
+                        } else if (vIn < 11) {
+                            compStates[c.id] = { isPowered: false, error: 'Low V' };
+                            netVoltages.set(acL, 0);
+                        } else {
                             compStates[c.id] = { isPowered: true };
                             if(!netVoltages.has(acN)) netVoltages.set(acN, 0);
                             netVoltages.set(acL, 220); 
-                        } else {
-                            compStates[c.id] = { isPowered: false };
-                            netVoltages.set(acL, 0);
                         }
                     }
                     // เบรกเกอร์ (สะพานไฟ)
@@ -504,7 +543,64 @@
 
             setSimResults({ voltages: netVoltages, wireCurrents, states: compStates, nets });
 
-        }, [components, wires, sunIntensity, isRunning]);
+        }, [components, wires, sunIntensity, isRunning, batteryState]); // Add batteryState dependency
+
+        // --- Battery Charging/Discharging Loop ---
+        useEffect(() => {
+            if (!isRunning) return;
+
+            const interval = setInterval(() => {
+                setBatteryState(prev => {
+                    const next = { ...prev };
+                    
+                    components.filter(c => c.type === COMPONENT_TYPES.BATTERY).forEach(bat => {
+                        const currentSoc = prev[bat.id]?.soc ?? 50;
+                        let flow = 0;
+                        let isCharging = false;
+                        
+                        // Find connected net voltage
+                        const posNet = simResults.nets?.find(n => n.has(`${bat.id}_pos`));
+                        const netV = simResults.voltages?.get(posNet) || 0;
+                        
+                        // Heuristic Logic:
+                        // 1. If Net Voltage > 13.0V => PV is connected and providing power => Charging
+                        if (netV > 13.0) {
+                            isCharging = true;
+                            // Charge rate depends on Sun (simplified)
+                            flow += 0.5 + (sunIntensity / 100); 
+                        } 
+                        
+                        // 2. Discharging Logic
+                        // If Net Voltage <= 13.0V (Battery is the source) AND there is load connected
+                        // We check if there are currents on wires connected to battery
+                        if (!isCharging && currentSoc > 0) {
+                            let totalAmpsOut = 0;
+                            wires.forEach(w => {
+                                if (w.from === bat.id || w.to === bat.id) {
+                                    totalAmpsOut += (simResults.wireCurrents?.get(w.id) || 0);
+                                }
+                            });
+                            
+                            // To account for Inverter step-up, we should look at loads.
+                            // Simplified: If battery node has high current => Discharge
+                            if (totalAmpsOut > 0.1) {
+                                flow -= totalAmpsOut * 0.5; // Discharge rate proportional to load
+                            }
+                        }
+
+                        let newSoc = currentSoc + flow;
+                        if (newSoc > 100) newSoc = 100;
+                        if (newSoc < 0) newSoc = 0;
+                        
+                        next[bat.id] = { soc: newSoc, isCharging };
+                    });
+                    
+                    return next;
+                });
+            }, 500); // Update every 500ms
+
+            return () => clearInterval(interval);
+        }, [isRunning, components, wires, simResults, sunIntensity]);
 
         // --- Interaction Handlers ---
 
@@ -586,6 +682,15 @@
                 } else {
                     setComponents(prev => prev.filter(c => c.id !== selectedObj.id));
                     setWires(prev => prev.filter(w => w.from !== selectedObj.id && w.to !== selectedObj.id));
+                    
+                    // Clean up battery state
+                    if (selectedObj.type === 'comp') {
+                        setBatteryState(prev => {
+                            const next = {...prev};
+                            delete next[selectedObj.id];
+                            return next;
+                        });
+                    }
                 }
                 setSelectedObj(null);
                 if (isRunning) { setIsRunning(false); setNotification(null); }
@@ -650,13 +755,20 @@
 
         const addComponent = (type) => {
             const spec = SPECS[type];
+            const newId = Date.now().toString();
             setComponents([...components, { 
-                id: Date.now().toString(), 
+                id: newId, 
                 type, 
                 x: 100 + components.length * 20, 
                 y: 100 + components.length * 20,
                 watts: spec.defaultWatts // Initial watts
             }]);
+            
+            // Init battery state
+            if (type === COMPONENT_TYPES.BATTERY) {
+                setBatteryState(prev => ({...prev, [newId]: { soc: 50, isCharging: false }}));
+            }
+            
             if(isRunning) { setIsRunning(false); setNotification(null); }
         };
 
@@ -915,9 +1027,27 @@
                                 )}
                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-xl">
                                     {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} />}
-                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} />}
+                                    
+                                    {comp.type === COMPONENT_TYPES.BATTERY && (
+                                        <BatteryVisual 
+                                            width={spec.width} 
+                                            height={spec.height} 
+                                            soc={batteryState[comp.id]?.soc ?? 50} 
+                                            isCharging={batteryState[comp.id]?.isCharging}
+                                        />
+                                    )}
+                                    
                                     {comp.type === COMPONENT_TYPES.CAPACITOR && <CapacitorVisual width={spec.width} height={spec.height} />}
-                                    {(comp.type === COMPONENT_TYPES.INVERTER || comp.type === COMPONENT_TYPES.BREAKER) && <BoxVisual width={spec.width} height={spec.height} label={comp.label} subLabel={comp.type === 'inverter' ? "220V Out" : ""} isPowered={showPower} />}
+                                    {(comp.type === COMPONENT_TYPES.INVERTER || comp.type === COMPONENT_TYPES.BREAKER) && (
+                                        <BoxVisual 
+                                            width={spec.width} 
+                                            height={spec.height} 
+                                            label={comp.label} 
+                                            subLabel={comp.type === 'inverter' ? "220V Out" : ""} 
+                                            isPowered={showPower}
+                                            error={state.error} 
+                                        />
+                                    )}
                                     {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
                                     {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
                                     {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
