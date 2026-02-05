@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Solar Simulator Thai - ระบบจำลองโซล่าเซลล์</title>
     
     <!-- Tailwind CSS -->
@@ -23,12 +23,14 @@
     </script>
     
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Sarabun', sans-serif; }
+        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; }
         /* Prevent text selection while dragging */
         .select-none { user-select: none; -webkit-user-select: none; }
+        /* Prevent pull-to-refresh and other touch actions on canvas */
+        .touch-none { touch-action: none; }
     </style>
     
-    <!-- Google Fonts for Thai support (Optional but looks better) -->
+    <!-- Google Fonts for Thai support -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -64,24 +66,40 @@
             [COMPONENT_TYPES.WIREWAY]: { label: 'รางสายไฟ (Wireway)', type: 'deco', width: 300, height: 60, terminals: [] },
         };
 
+        // --- Utility Functions ---
+        
+        // Helper: Get robust coordinates from Mouse or Touch events
+        const getEventPos = (e) => {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        };
+
+        // Helper: Bind both mouse and touch start events
+        const bindStartEvents = (handler) => ({
+            onMouseDown: (e) => handler(e),
+            onTouchStart: (e) => handler(e),
+        });
+
         // --- ส่วนประกอบแสดงผล (Visual Components) ---
 
-        // แก้ไข Terminal: แยก Hit Area ออกจาก Visual Group เพื่อป้องกันอาการกระพริบ/ดิ้น
-        const Terminal = ({ x, y, color, label, onMouseDown }) => (
+        const Terminal = ({ x, y, color, label, onInteract }) => (
         <g 
             transform={`translate(${x}, ${y})`} 
-            onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e); }} 
-            className="cursor-crosshair group"
+            {...bindStartEvents((e) => { 
+                e.stopPropagation(); 
+                onInteract(e); 
+            })}
+            className="cursor-crosshair group touch-none"
         >
-            {/* Hit Area - นิ่งอยู่กับที่ ไม่ขยายตาม */}
-            <circle r="15" fill="transparent" /> 
-
-            {/* Visuals - ขยายเฉพาะส่วนนี้เมื่อนำเมาส์ไปชี้ที่กลุ่มแม่ (group-hover) */}
+            <circle r="20" fill="transparent" /> 
             <g className="transition-transform group-hover:scale-125 origin-center">
                 <rect x="-6" y="-6" width="12" height="12" fill="#374151" rx="2" />
                 <circle r="4" fill={color} stroke="white" strokeWidth="1.5" />
             </g>
-            
             {label && <text x="0" y="18" textAnchor="middle" fill="#4b5563" fontSize="8" fontWeight="bold" className="pointer-events-none">{label}</text>}
         </g>
         );
@@ -103,10 +121,8 @@
         const BatteryVisual = ({ width, height }) => (
         <g>
             <rect x="5" y="10" width={width-10} height={height-10} rx="4" fill="#1f2937" stroke="#374151" strokeWidth="2" />
-            {/* Terminals Top */}
             <rect x="20" y="0" width="15" height="10" fill="#dc2626" />
             <rect x={width-35} y="0" width="15" height="10" fill="#111827" />
-            {/* Label */}
             <rect x="15" y="40" width={width-30} height={50} rx="2" fill="#374151" />
             <text x={width/2} y="65" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">12V 100Ah</text>
             <text x={width/2} y="80" textAnchor="middle" fill="#9ca3af" fontSize="10">Deep Cycle</text>
@@ -115,17 +131,11 @@
 
         const CapacitorVisual = ({ width, height }) => (
         <g>
-            {/* Body */}
             <circle cx={width/2} cy={height/2 + 10} r="25" fill="#2563eb" stroke="#1e40af" strokeWidth="2" />
             <rect x={width/2 - 25} y={height/2 + 10} width="50" height="10" fill="#1d4ed8" />
-            
-            {/* Legs */}
             <line x1={width/2 - 10} y1={height/2 - 15} x2={width/2 - 10} y2={0} stroke="#ef4444" strokeWidth="4" />
             <line x1={width/2 + 10} y1={height/2 - 15} x2={width/2 + 10} y2={0} stroke="#1f2937" strokeWidth="4" />
-
-            {/* Top Cap */}
             <ellipse cx={width/2} cy={height/2 - 15} rx="25" ry="8" fill="#60a5fa" stroke="#1e40af" strokeWidth="1" />
-            
             <text x={width/2} y={height-10} textAnchor="middle" fill="#1e3a8a" fontSize="10" fontWeight="bold">Capacitor</text>
         </g>
         );
@@ -167,7 +177,6 @@
         <g>
             <rect x="10" y="20" width={width-20} height={height-40} rx="5" fill="#4b5563" />
             <circle cx={width/2} cy={height/2} r="25" fill="#374151" stroke="#d1d5db" strokeWidth="2" />
-            {/* Spinning Part */}
             <g transform={`translate(${width/2}, ${height/2})`}>
                 <path 
                     d="M -20 0 L 20 0 M 0 -20 L 0 20" 
@@ -185,10 +194,10 @@
 
         // --- Tool Components ---
 
-        const DraggableProbe = ({ type, x, y, onMouseDown }) => (
+        const DraggableProbe = ({ type, x, y, onInteract }) => (
             <div 
-                onMouseDown={onMouseDown}
-                className="absolute cursor-move z-50 hover:scale-110 transition-transform"
+                {...bindStartEvents(onInteract)}
+                className="absolute cursor-move z-50 hover:scale-110 transition-transform touch-none"
                 style={{ left: x, top: y, transform: 'translate(-50%, -100%)' }}
             >
                 <div className={`w-3 h-20 ${type === 'red' ? 'bg-red-500' : 'bg-gray-800'} rounded-t-sm rounded-b-full shadow-lg border border-white/20 relative`}>
@@ -197,10 +206,10 @@
             </div>
         );
 
-        const ClampMeterTool = ({ x, y, value, onMouseDown }) => (
+        const ClampMeterTool = ({ x, y, value, onInteract }) => (
             <div 
-                onMouseDown={onMouseDown}
-                className="absolute z-50 cursor-move group"
+                {...bindStartEvents(onInteract)}
+                className="absolute z-50 cursor-move group touch-none"
                 style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
             >
                 <div className="relative w-24 h-40">
@@ -500,7 +509,10 @@
         // --- Interaction Handlers ---
 
         const handleGlobalMove = (e) => {
-            const { clientX, clientY } = e;
+            // Prevent scrolling on touch devices during drag
+            if(e.touches) e.preventDefault(); 
+            
+            const { x: clientX, y: clientY } = getEventPos(e);
             
             if(dragInfo?.type === 'comp') {
                 setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: clientX - dragInfo.offsetX, y: clientY - dragInfo.offsetY} : c));
@@ -524,7 +536,7 @@
         };
 
         const handleGlobalMouseUp = (e) => {
-            const { clientX, clientY } = e;
+            const { x: clientX, y: clientY } = getEventPos(e);
 
             if (dragInfo?.type === 'probe') {
                 const hit = findHitTerminal(clientX, clientY);
@@ -667,8 +679,12 @@
         const getSelectedComponent = () => components.find(c => c.id === selectedObj?.id);
 
         return (
-            <div className="flex h-screen bg-slate-100 font-sans select-none overflow-hidden" 
-                onMouseMove={handleGlobalMove} onMouseUp={handleGlobalMouseUp} onClick={() => setSelectedObj(null)}>
+            <div className="flex h-screen bg-slate-100 font-sans select-none overflow-hidden touch-none" 
+                onMouseMove={handleGlobalMove} 
+                onTouchMove={handleGlobalMove}
+                onMouseUp={handleGlobalMouseUp} 
+                onTouchEnd={handleGlobalMouseUp}
+                onClick={() => setSelectedObj(null)}>
             
             {/* Show Guide Modal if active */}
             {showGuide && <WiringGuideModal onClose={() => setShowGuide(false)} />}
@@ -857,7 +873,7 @@
                                 <g 
                                     transform={`translate(${midX}, ${midY})`} 
                                     className={`opacity-0 group-hover:opacity-100 cursor-ns-resize transition-opacity ${isSelected ? 'opacity-100' : ''}`}
-                                    onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'wireHandle', id: w.id, baseY: defaultMidY }); }}
+                                    {...bindStartEvents((e) => { e.stopPropagation(); setDragInfo({ type: 'wireHandle', id: w.id, baseY: defaultMidY }); })}
                                 >
                                     <circle r="8" fill="white" stroke="#3b82f6" strokeWidth="2" />
                                     <GripHorizontal size={10} className="text-blue-500 -translate-x-[5px] -translate-y-[5px]" />
@@ -882,7 +898,14 @@
                     return (
                         <div key={comp.id} className="absolute group z-10" style={{left: comp.x, top: comp.y}}>
                             <div 
-                                onMouseDown={(e) => { if(e.button===0) { setDragInfo({ type: 'comp', id: comp.id, offsetX: e.clientX - comp.x, offsetY: e.clientY - comp.y }); handleCompClick(e, comp); } }}
+                                {...bindStartEvents((e) => { 
+                                    const { x, y } = getEventPos(e);
+                                    // Handle only main touches or mouse button 0
+                                    if(e.type === 'mousedown' && e.button !== 0) return;
+                                    
+                                    setDragInfo({ type: 'comp', id: comp.id, offsetX: x - comp.x, offsetY: y - comp.y }); 
+                                    handleCompClick(e, comp); 
+                                })}
                                 className={`relative transition-transform ${isSelected ? 'scale-105 ring-2 ring-yellow-400 rounded-lg' : ''}`}
                             >
                                 {isSelected && (
@@ -902,7 +925,10 @@
 
                                     {spec.terminals.map(t => (
                                         <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} 
-                                            onMouseDown={(e) => { if(e.button===0) setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x + t.x, y1: comp.y + spec.height + 5, x2: comp.x + t.x, y2: comp.y + spec.height + 5 }); }}
+                                            onInteract={(e) => { 
+                                                // Prevent dragging component when interacting with terminal
+                                                setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x + t.x, y1: comp.y + spec.height + 5, x2: comp.x + t.x, y2: comp.y + spec.height + 5 }); 
+                                            }}
                                         />
                                     ))}
                                 </svg>
@@ -915,8 +941,8 @@
                 {activeTool === 'volt' && (
                     <>
                         <VoltmeterDisplay value={getVoltageReading()} />
-                        <DraggableProbe type="red" x={probePos.red.x} y={probePos.red.y} onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'red' }); }} />
-                        <DraggableProbe type="black" x={probePos.black.x} y={probePos.black.y} onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'black' }); }} />
+                        <DraggableProbe type="red" x={probePos.red.x} y={probePos.red.y} onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'red' }); }} />
+                        <DraggableProbe type="black" x={probePos.black.x} y={probePos.black.y} onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'black' }); }} />
                         {/* สายโพรบ */}
                         <svg className="absolute inset-0 pointer-events-none z-30">
                             <path d={`M ${window.innerWidth - 100} ${window.innerHeight - 50} C ${window.innerWidth - 100} ${window.innerHeight - 200}, ${probePos.red.x} ${probePos.red.y + 200}, ${probePos.red.x} ${probePos.red.y}`} stroke="#ef4444" strokeWidth="2" fill="none" opacity="0.5"/>
@@ -926,7 +952,7 @@
                 )}
 
                 {activeTool === 'amp' && (
-                    <ClampMeterTool x={clampPos.x} y={clampPos.y} value={getCurrentReading()} onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'clamp' }); }} />
+                    <ClampMeterTool x={clampPos.x} y={clampPos.y} value={getCurrentReading()} onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'clamp' }); }} />
                 )}
 
             </div>
