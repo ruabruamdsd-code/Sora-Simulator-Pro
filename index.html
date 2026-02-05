@@ -3,624 +3,940 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AstroVerse AR</title>
+    <title>Solar Simulator Thai - ระบบจำลองโซล่าเซลล์</title>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Import Map for Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+        }
+    }
+    </script>
     
     <style>
-        /* Custom Animations */
-        @keyframes orbit {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .animate-fadeOut {
-            animation: fadeOut 0.2s ease-out forwards;
-        }
-        .animate-fadeIn {
-            animation: fadeIn 0.3s ease-out forwards;
-        }
-        /* Hide scrollbar for clean UI */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Sarabun', sans-serif; }
+        /* Prevent text selection while dragging */
+        .select-none { user-select: none; -webkit-user-select: none; }
     </style>
+    
+    <!-- Google Fonts for Thai support (Optional but looks better) -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-
+<body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Sun, Trash2, Zap, Plus, Settings, Power, Lightbulb, Play, RotateCcw, AlertTriangle, CheckCircle, GripHorizontal, Activity, Battery, Fan, Cylinder, BookOpen, X } from 'lucide-react';
 
-        // --- Icons Components (SVG) ---
-        // สร้าง Icon Component เพื่อใช้แทน Lucide-react ในไฟล์ HTML เดียว
-        const IconWrapper = ({ children, size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {children}
-            </svg>
+        // --- ค่าคงที่และประเภทอุปกรณ์ (Constants & Types) ---
+        const COMPONENT_TYPES = {
+            PANEL: 'panel',
+            BATTERY: 'battery',
+            CAPACITOR: 'capacitor',
+            INVERTER: 'inverter',
+            BREAKER: 'breaker',
+            SOCKET: 'socket',
+            BULB: 'bulb',
+            MOTOR: 'motor',
+            WIREWAY: 'wireway'
+        };
+
+        const SPECS = {
+            [COMPONENT_TYPES.PANEL]: { label: 'แผงโซล่าเซลล์ (PV)', type: 'source', maxV: 40, maxA: 5, width: 100, height: 140, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 70, color: 'black'}] },
+            [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่ 12V', type: 'source', maxV: 12.8, maxA: 50, width: 100, height: 120, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 70, color: 'black'}] },
+            [COMPONENT_TYPES.CAPACITOR]: { label: 'ตัวเก็บประจุ (Capacitor)', type: 'passive', width: 60, height: 80, terminals: [{id: 'pos', x: 20, color: 'red'}, {id: 'neg', x: 40, color: 'black'}] },
+            [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์ (Inverter)', type: 'converter', width: 140, height: 100, terminals: [{id: 'dc_pos', label: 'DC+', x: 30, color: 'red'}, {id: 'dc_neg', label: 'DC-', x: 50, color: 'black'}, {id: 'ac_l', label: 'L', x: 90, color: 'brown'}, {id: 'ac_n', label: 'N', x: 110, color: 'blue'}] },
+            [COMPONENT_TYPES.BREAKER]: { label: 'เบรกเกอร์ (Breaker)', type: 'switch', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 30, color: 'black'}, {id: 'in_2', label: 'เข้า', x: 50, color: 'black'}, {id: 'out_1', label: 'ออก', x: 70, color: 'black'}, {id: 'out_2', label: 'ออก', x: 90, color: 'black'}] },
+            [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ (Socket)', type: 'load', defaultWatts: 500, voltageRef: 220, width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 55, color: 'blue'}] },
+            [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ (Bulb)', type: 'load', defaultWatts: 60, voltageRef: 220, width: 80, height: 100, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 55, color: 'blue'}] },
+            [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์ (Motor)', type: 'load', defaultWatts: 150, voltageRef: 12, width: 100, height: 100, terminals: [{id: 'l', label: '+', x: 30, color: 'red'}, {id: 'n', label: '-', x: 70, color: 'black'}] },
+            [COMPONENT_TYPES.WIREWAY]: { label: 'รางสายไฟ (Wireway)', type: 'deco', width: 300, height: 60, terminals: [] },
+        };
+
+        // --- ส่วนประกอบแสดงผล (Visual Components) ---
+
+        // แก้ไข Terminal: แยก Hit Area ออกจาก Visual Group เพื่อป้องกันอาการกระพริบ/ดิ้น
+        const Terminal = ({ x, y, color, label, onMouseDown }) => (
+        <g 
+            transform={`translate(${x}, ${y})`} 
+            onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e); }} 
+            className="cursor-crosshair group"
+        >
+            {/* Hit Area - นิ่งอยู่กับที่ ไม่ขยายตาม */}
+            <circle r="15" fill="transparent" /> 
+
+            {/* Visuals - ขยายเฉพาะส่วนนี้เมื่อนำเมาส์ไปชี้ที่กลุ่มแม่ (group-hover) */}
+            <g className="transition-transform group-hover:scale-125 origin-center">
+                <rect x="-6" y="-6" width="12" height="12" fill="#374151" rx="2" />
+                <circle r="4" fill={color} stroke="white" strokeWidth="1.5" />
+            </g>
+            
+            {label && <text x="0" y="18" textAnchor="middle" fill="#4b5563" fontSize="8" fontWeight="bold" className="pointer-events-none">{label}</text>}
+        </g>
         );
 
-        const Icons = {
-            Camera: (props) => <IconWrapper {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></IconWrapper>,
-            BookOpen: (props) => <IconWrapper {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconWrapper>,
-            User: (props) => <IconWrapper {...props}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconWrapper>,
-            Star: (props) => <IconWrapper {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconWrapper>,
-            Crosshair: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></IconWrapper>,
-            Info: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></IconWrapper>,
-            ChevronRight: (props) => <IconWrapper {...props}><polyline points="9 18 15 12 9 6"/></IconWrapper>,
-            Zap: (props) => <IconWrapper {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconWrapper>,
-            Award: (props) => <IconWrapper {...props}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></IconWrapper>,
-            ArrowLeft: (props) => <IconWrapper {...props}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></IconWrapper>,
-            Volume2: (props) => <IconWrapper {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></IconWrapper>,
-            Maximize: (props) => <IconWrapper {...props}><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></IconWrapper>,
-            Share2: (props) => <IconWrapper {...props}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></IconWrapper>,
-            Download: (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></IconWrapper>,
-            X: (props) => <IconWrapper {...props}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></IconWrapper>,
-            Facebook: (props) => <IconWrapper {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></IconWrapper>,
-            Twitter: (props) => <IconWrapper {...props}><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></IconWrapper>,
-            Instagram: (props) => <IconWrapper {...props}><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></IconWrapper>,
-            PlayCircle: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></IconWrapper>,
-            Clock: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>
-        };
+        const PVPanelVisual = ({ width, height, sunIntensity }) => (
+        <g>
+            <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
+            <g stroke="rgba(255,255,255,0.4)" strokeWidth="1">
+            <line x1="0" y1={height/4} x2={width} y2={height/4} />
+            <line x1="0" y1={height/2} x2={width} y2={height/2} />
+            <line x1="0" y1={height*0.75} x2={width} y2={height*0.75} />
+            <line x1={width/2} y1="0" x2={width/2} y2={height} />
+            </g>
+            <text x={width/2} y={height/2} textAnchor="middle" fill="white" opacity="0.8" fontSize="12" fontWeight="bold">PV SOLAR</text>
+            {sunIntensity < 20 && <text x={width/2} y={height/2 + 20} textAnchor="middle" fill="white" opacity="0.6" fontSize="10">(ไม่มีแสง)</text>}
+        </g>
+        );
 
-        const AstroVerseApp = () => {
-          const [currentView, setCurrentView] = useState('home'); 
-          const [selectedPlanet, setSelectedPlanet] = useState(null);
-          const [selectedLesson, setSelectedLesson] = useState(null);
-          const [arScanning, setArScanning] = useState(true);
-          const [userLevel, setUserLevel] = useState(5);
-          const [userXP, setUserXP] = useState(2450);
-          const [showShareModal, setShowShareModal] = useState(false);
-          const [flashTrigger, setFlashTrigger] = useState(false);
+        const BatteryVisual = ({ width, height }) => (
+        <g>
+            <rect x="5" y="10" width={width-10} height={height-10} rx="4" fill="#1f2937" stroke="#374151" strokeWidth="2" />
+            {/* Terminals Top */}
+            <rect x="20" y="0" width="15" height="10" fill="#dc2626" />
+            <rect x={width-35} y="0" width="15" height="10" fill="#111827" />
+            {/* Label */}
+            <rect x="15" y="40" width={width-30} height={50} rx="2" fill="#374151" />
+            <text x={width/2} y="65" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">12V 100Ah</text>
+            <text x={width/2} y="80" textAnchor="middle" fill="#9ca3af" fontSize="10">Deep Cycle</text>
+        </g>
+        );
 
-          // ข้อมูลบทเรียน
-          const lessonsData = [
-            { 
-              id: 'solar-origin', 
-              title: 'กำเนิดระบบสุริยะ', 
-              icon: '☀️', 
-              color: 'from-orange-500/20 to-red-500/20',
-              textColor: 'text-orange-400',
-              image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2022&auto=format&fit=crop',
-              duration: '5 min read',
-              content: (
-                <React.Fragment>
-                  <p className="mb-4 text-slate-300 leading-relaxed">
-                    ระบบสุริยะถือกำเนิดขึ้นเมื่อประมาณ <strong className="text-white">4.6 พันล้านปีก่อน</strong> จากฝุ่นและแก๊สในอวกาศที่เรียกว่า "เนบิวลาสุริยะ" (Solar Nebula) แรงโน้มถ่วงทำให้เนบิวลายุบตัวลงและหมุนวนจนก่อกำเนิดเป็นดวงอาทิตย์ที่ใจกลาง
-                  </p>
-                  <div className="bg-slate-800 p-4 rounded-xl mb-6 border-l-4 border-orange-500">
-                    <h4 className="font-bold text-orange-400 mb-2 flex items-center gap-2"><Icons.Info size={16}/> รู้หรือไม่?</h4>
-                    <p className="text-sm text-slate-300">มวลของดวงอาทิตย์คิดเป็น 99.86% ของมวลทั้งหมดในระบบสุริยะ ส่วนที่เหลือคือดาวเคราะห์และวัตถุอื่นๆ รวมกัน</p>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">การก่อตัวของดาวเคราะห์</h3>
-                  <p className="mb-4 text-slate-300 leading-relaxed">
-                    เศษฝุ่นที่เหลือจากการกำเนิดดวงอาทิตย์เริ่มจับตัวกันเป็นก้อนหินและน้ำแข็ง จนกลายเป็นดาวเคราะห์ชั้นใน (ดาวพุธ ศุกร์ โลก อังคาร) และดาวเคราะห์ก๊าซยักษ์ในชั้นนอก
-                  </p>
-                </React.Fragment>
-              )
-            },
-            { 
-              id: 'moon-phases', 
-              title: 'ข้างขึ้นข้างแรม', 
-              icon: '🌑', 
-              color: 'from-blue-500/20 to-indigo-500/20',
-              textColor: 'text-blue-400',
-              image: 'https://images.unsplash.com/photo-1532693322450-2cb5c511067d?q=80&w=2070&auto=format&fit=crop',
-              duration: '8 min read',
-              content: (
-                <React.Fragment>
-                  <p className="mb-4 text-slate-300 leading-relaxed">
-                    ปรากฏการณ์ข้างขึ้นข้างแรมเกิดจากการที่ดวงจันทร์โคจรรอบโลก และสะท้อนแสงจากดวงอาทิตย์ในมุมที่เปลี่ยนไปเมื่อมองจากโลก ทำให้เราเห็นส่วนสว่างของดวงจันทร์ไม่เท่ากันในแต่ละคืน
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar">
-                    {['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'].map((phase, i) => (
-                      <div key={i} className="min-w-[50px] h-[50px] bg-slate-800 rounded-lg flex items-center justify-center text-2xl border border-slate-700">{phase}</div>
-                    ))}
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">วัฏจักรดวงจันทร์</h3>
-                  <p className="mb-4 text-slate-300 leading-relaxed">
-                    หนึ่งรอบของข้างขึ้นข้างแรมกินเวลาประมาณ 29.5 วัน เรียกว่า "เดือนทางจันทรคติ"
-                  </p>
-                </React.Fragment>
-              )
-            },
-            { 
-              id: 'black-hole', 
-              title: 'หลุมดำ (Black Hole)', 
-              icon: '🕳️', 
-              color: 'from-purple-500/20 to-pink-500/20',
-              textColor: 'text-purple-400',
-              image: 'https://images.unsplash.com/photo-1462332420958-a05d1e002413?q=80&w=2007&auto=format&fit=crop',
-              duration: '10 min read',
-              content: (
-                <React.Fragment>
-                  <p className="mb-4 text-slate-300 leading-relaxed">
-                    หลุมดำคือเทหวัตถุในอวกาศที่มีแรงโน้มถ่วงสูงมาก จนกระทั่งแสงก็ไม่สามารถหนีออกมาได้ เกิดจากการยุบตัวของดาวฤกษ์มวลมหาศาลเมื่อสิ้นอายุขัย
-                  </p>
-                  <div className="bg-slate-800 p-4 rounded-xl mb-6 border-l-4 border-purple-500">
-                    <h4 className="font-bold text-purple-400 mb-2 flex items-center gap-2"><Icons.Info size={16}/> ขอบฟ้าเหตุการณ์</h4>
-                    <p className="text-sm text-slate-300">Event Horizon คือจุดที่ "ห้ามหวนกลับ" หากวัตถุใดข้ามเส้นนี้ไป จะถูกดูดเข้าสู่ใจกลางหลุมดำทันที</p>
-                  </div>
-                </React.Fragment>
-              )
-            },
-            { 
-              id: 'space-ex', 
-              title: 'สำรวจอวกาศ', 
-              icon: '🚀', 
-              color: 'from-red-500/20 to-orange-500/20',
-              textColor: 'text-red-400',
-              image: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=2070&auto=format&fit=crop',
-              duration: '12 min read',
-              content: (
-                <React.Fragment>
-                  <p className="mb-4 text-slate-300 leading-relaxed">
-                    มนุษยชาติเริ่มสำรวจอวกาศอย่างจริงจังตั้งแต่ยุคสงครามเย็น เริ่มต้นด้วยดาวเทียมสปุตนิก 1 ของโซเวียต ตามด้วยการส่งมนุษย์ไปดวงจันทร์ในโครงการ Apollo ของ NASA
-                  </p>
-                  <ul className="space-y-2 mb-4 text-slate-300 text-sm">
-                     <li className="flex items-center gap-2"><span className="text-red-400">•</span> 1957: สปุตนิก 1 (ดาวเทียมดวงแรก)</li>
-                     <li className="flex items-center gap-2"><span className="text-red-400">•</span> 1961: ยูริ กาการิน (มนุษย์คนแรกในอวกาศ)</li>
-                     <li className="flex items-center gap-2"><span className="text-red-400">•</span> 1969: อพอลโล 11 (มนุษย์เหยียบดวงจันทร์)</li>
-                  </ul>
-                </React.Fragment>
-              )
-            },
-          ];
+        const CapacitorVisual = ({ width, height }) => (
+        <g>
+            {/* Body */}
+            <circle cx={width/2} cy={height/2 + 10} r="25" fill="#2563eb" stroke="#1e40af" strokeWidth="2" />
+            <rect x={width/2 - 25} y={height/2 + 10} width="50" height="10" fill="#1d4ed8" />
+            
+            {/* Legs */}
+            <line x1={width/2 - 10} y1={height/2 - 15} x2={width/2 - 10} y2={0} stroke="#ef4444" strokeWidth="4" />
+            <line x1={width/2 + 10} y1={height/2 - 15} x2={width/2 + 10} y2={0} stroke="#1f2937" strokeWidth="4" />
 
-          // ข้อมูลดาวเคราะห์
-          const planets = [
-            { id: 'sun', name: 'ดวงอาทิตย์ (Sun)', color: 'bg-yellow-400', size: 'w-24 h-24', orbit: 'w-0 h-0', speed: '0s', desc: 'ดาวฤกษ์ศูนย์กลางของระบบสุริยะ', dist: '0 AU', type: 'Star' },
-            { id: 'mercury', name: 'ดาวพุธ (Mercury)', color: 'bg-gray-400', size: 'w-4 h-4', orbit: 'w-32 h-32', speed: '4s', desc: 'ดาวเคราะห์ที่อยู่ใกล้ดวงอาทิตย์ที่สุด', dist: '0.39 AU', type: 'Terrestrial' },
-            { id: 'venus', name: 'ดาวศุกร์ (Venus)', color: 'bg-orange-300', size: 'w-6 h-6', orbit: 'w-48 h-48', speed: '6s', desc: 'ฝาแฝดของโลก แต่ร้อนระอุด้วยก๊าซเรือนกระจก', dist: '0.72 AU', type: 'Terrestrial' },
-            { id: 'earth', name: 'โลก (Earth)', color: 'bg-blue-500', size: 'w-6 h-6', orbit: 'w-64 h-64', speed: '8s', desc: 'บ้านของเรา ดาวเคราะห์แห่งผืนน้ำและสิ่งมีชีวิต', dist: '1.00 AU', type: 'Terrestrial' },
-            { id: 'mars', name: 'ดาวอังคาร (Mars)', color: 'bg-red-500', size: 'w-5 h-5', orbit: 'w-80 h-80', speed: '10s', desc: 'ดาวแดง เป้าหมายต่อไปของมนุษยชาติ', dist: '1.52 AU', type: 'Terrestrial' },
-            { id: 'jupiter', name: 'ดาวพฤหัส (Jupiter)', color: 'bg-orange-200', size: 'w-16 h-16', orbit: 'w-[28rem] h-[28rem]', speed: '18s', desc: 'พี่ใหญ่แห่งระบบสุริยะ ดาวเคราะห์แก๊สยักษ์', dist: '5.20 AU', type: 'Gas Giant' },
-          ];
+            {/* Top Cap */}
+            <ellipse cx={width/2} cy={height/2 - 15} rx="25" ry="8" fill="#60a5fa" stroke="#1e40af" strokeWidth="1" />
+            
+            <text x={width/2} y={height-10} textAnchor="middle" fill="#1e3a8a" fontSize="10" fontWeight="bold">Capacitor</text>
+        </g>
+        );
 
-          useEffect(() => {
-            if (currentView === 'ar') {
-              const timer = setTimeout(() => setArScanning(false), 2000);
-              return () => clearTimeout(timer);
-            } else {
-              setArScanning(true);
-              setSelectedPlanet(null);
-              setShowShareModal(false);
-            }
-          }, [currentView]);
+        const BoxVisual = ({ width, height, label, subLabel, isPowered }) => (
+        <g>
+            <rect x="0" y="0" width={width} height={height} rx="4" fill="white" stroke="#374151" strokeWidth="2" className="shadow-sm" />
+            <rect x="0" y="0" width={width} height="25" rx="4" fill="#f3f4f6" stroke="none" />
+            <line x1="0" y1="25" x2={width} y2="25" stroke="#e5e7eb" strokeWidth="1" />
+            <text x={width/2} y="18" textAnchor="middle" fill="#111827" fontSize="10" fontWeight="bold">{label}</text>
+            <circle cx={width - 15} cy="12.5" r="4" fill={isPowered ? "#22c55e" : "#ef4444"} stroke="#d1d5db" strokeWidth="1" />
+            {subLabel && <text x={width/2} y={height/2 + 5} textAnchor="middle" fill="#6b7280" fontSize="10">{subLabel}</text>}
+        </g>
+        );
 
-          const handleSnapshot = () => {
-            setFlashTrigger(true);
-            setTimeout(() => setFlashTrigger(false), 150);
-            setTimeout(() => setShowShareModal(true), 400);
-          };
+        const SocketVisual = ({ width, height, isPowered, watts }) => (
+        <g>
+            <rect x="0" y="0" width={width} height={height} rx="4" fill="#f9fafb" stroke="#9ca3af" strokeWidth="2" />
+            <circle cx={width*0.3} cy={height/2} r="6" fill="#1f2937" />
+            <circle cx={width*0.7} cy={height/2} r="6" fill="#1f2937" />
+            {isPowered && <rect x={width/2 - 2} y={height - 10} width="4" height="4" fill="#22c55e" className="animate-pulse" />}
+            <text x={width/2} y={height/2 + 25} textAnchor="middle" fill="#6b7280" fontSize="8">{watts}W</text>
+        </g>
+        );
 
-          const openLesson = (lesson) => {
-            setSelectedLesson(lesson);
-            setCurrentView('lesson');
-          };
+        const BulbVisual = ({ width, height, isPowered, watts }) => (
+        <g>
+            <rect x="0" y="0" width={width} height={height} rx="4" fill="transparent" /> 
+            <rect x={width/2 - 10} y={height-20} width="20" height="15" fill="#9ca3af" />
+            <circle cx={width/2} cy={height/2 - 10} r="25" fill={isPowered ? "#fef08a" : "white"} stroke="#d1d5db" strokeWidth="1" />
+            {isPowered && (
+            <circle cx={width/2} cy={height/2 - 10} r="30" fill="none" stroke="#fbbf24" strokeWidth="4" className="animate-pulse" opacity="0.5" />
+            )}
+            <text x={width/2} y={height/2 - 10} textAnchor="middle" fill={isPowered ? "#b45309" : "#9ca3af"} fontSize="10" fontWeight="bold">{watts}W</text>
+        </g>
+        );
 
-          const HomeView = () => (
-            <div className="flex flex-col h-full bg-slate-900 text-white overflow-y-auto pb-20 no-scrollbar">
-              <div className="p-6 bg-gradient-to-b from-indigo-900 to-slate-900 rounded-b-3xl shadow-xl border-b border-indigo-500/30 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-20">
-                   <Icons.Star size={100} />
+        const MotorVisual = ({ width, height, isPowered, watts }) => (
+        <g>
+            <rect x="10" y="20" width={width-20} height={height-40} rx="5" fill="#4b5563" />
+            <circle cx={width/2} cy={height/2} r="25" fill="#374151" stroke="#d1d5db" strokeWidth="2" />
+            {/* Spinning Part */}
+            <g transform={`translate(${width/2}, ${height/2})`}>
+                <path 
+                    d="M -20 0 L 20 0 M 0 -20 L 0 20" 
+                    stroke="white" 
+                    strokeWidth="4" 
+                    className={isPowered ? "animate-spin origin-center" : ""} 
+                    style={{ animationDuration: '0.5s' }}
+                />
+                <circle r="5" fill="#9ca3af" />
+            </g>
+            <rect x={width/2 - 15} y={height-20} width="30" height="20" fill="#1f2937" />
+            <text x={width/2} y={15} textAnchor="middle" fill="#4b5563" fontSize="10">{watts}W</text>
+        </g>
+        );
+
+        // --- Tool Components ---
+
+        const DraggableProbe = ({ type, x, y, onMouseDown }) => (
+            <div 
+                onMouseDown={onMouseDown}
+                className="absolute cursor-move z-50 hover:scale-110 transition-transform"
+                style={{ left: x, top: y, transform: 'translate(-50%, -100%)' }}
+            >
+                <div className={`w-3 h-20 ${type === 'red' ? 'bg-red-500' : 'bg-gray-800'} rounded-t-sm rounded-b-full shadow-lg border border-white/20 relative`}>
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-1 h-6 bg-gray-300 rounded-full shadow-sm"></div>
                 </div>
-                <div className="flex justify-between items-center mb-4 relative z-10">
-                  <div>
-                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">AstroVerse AR</h1>
-                    <p className="text-slate-400 text-sm">ห้องเรียนจักรวาลในมือคุณ</p>
-                  </div>
-                  <div className="bg-indigo-800/50 p-2 rounded-full border border-indigo-500/30">
-                    <Icons.User className="text-cyan-300" />
-                  </div>
-                </div>
-                
-                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 relative z-10">
-                  <div className="flex justify-between items-end mb-2">
-                    <div>
-                      <span className="text-xs text-indigo-300 uppercase tracking-wider">Cadet Level</span>
-                      <div className="text-3xl font-bold text-white">{userLevel}</div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-indigo-300">XP</span>
-                      <div className="text-lg font-bold text-yellow-400">{userXP.toLocaleString()}</div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-                    <div className="bg-gradient-to-r from-cyan-500 to-blue-600 h-full w-[75%] rounded-full shadow-[0_0_10px_rgba(6,182,212,0.5)]"></div>
-                  </div>
-                  <p className="text-xs text-center mt-2 text-slate-300">อีก 550 XP จะเลื่อนยศเป็น "Space Explorer"</p>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Icons.Zap className="text-yellow-400 fill-yellow-400" size={18} /> 
-                  ภารกิจวันนี้ (Daily Missions)
-                </h2>
-                <div className="space-y-3">
-                  <div className="bg-slate-800 p-4 rounded-xl border-l-4 border-cyan-500 shadow-lg flex items-center justify-between hover:bg-slate-750 transition cursor-pointer" onClick={() => setCurrentView('ar')}>
-                    <div>
-                      <h3 className="font-bold text-white">ตามหาดาวเคราะห์แก๊ส</h3>
-                      <p className="text-xs text-slate-400 mt-1">ส่องกล้อง AR เพื่อค้นหาดาวพฤหัส</p>
-                    </div>
-                    <div className="bg-cyan-900/50 px-3 py-1 rounded-full text-cyan-300 text-xs font-bold border border-cyan-500/30">
-                      +100 XP
-                    </div>
-                  </div>
-                  <div className="bg-slate-800 p-4 rounded-xl border-l-4 border-purple-500 shadow-lg flex items-center justify-between hover:bg-slate-750 transition cursor-pointer" onClick={() => setCurrentView('quiz')}>
-                    <div>
-                      <h3 className="font-bold text-white">Quiz: ระบบสุริยะ</h3>
-                      <p className="text-xs text-slate-400 mt-1">ทดสอบความเข้าใจ 5 ข้อ</p>
-                    </div>
-                    <div className="bg-purple-900/50 px-3 py-1 rounded-full text-purple-300 text-xs font-bold border border-purple-500/30">
-                      +50 XP
-                    </div>
-                  </div>
-                </div>
-
-                <h2 className="text-lg font-semibold mb-4 mt-8 flex items-center gap-2">
-                  <Icons.BookOpen className="text-cyan-400" size={18} /> 
-                  บทเรียน (Lessons)
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {lessonsData.map((lesson) => (
-                     <div 
-                       key={lesson.id}
-                       onClick={() => openLesson(lesson)}
-                       className={`bg-gradient-to-br ${lesson.color} bg-slate-800 p-4 rounded-2xl border border-white/5 flex flex-col items-center text-center gap-2 hover:scale-105 transition cursor-pointer group`}
-                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-1 bg-black/20 group-hover:bg-black/40 transition`}>
-                        {lesson.icon}
-                      </div>
-                      <span className="text-sm font-medium text-white">{lesson.title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
-          );
+        );
 
-          const LessonView = () => (
-            <div className="flex flex-col h-full bg-slate-900 text-white overflow-y-auto relative no-scrollbar">
-              <div className="h-64 w-full relative">
-                 <div className="absolute inset-0 bg-slate-900/30"></div>
-                 <img src={selectedLesson?.image} className="w-full h-full object-cover" alt="Lesson Header" />
-                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
-                 
-                 <button onClick={() => setCurrentView('home')} className="absolute top-4 left-4 bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/20 border border-white/10 z-10">
-                   <Icons.ArrowLeft size={20} />
-                 </button>
-              </div>
-
-              <div className="px-6 -mt-10 relative z-10 pb-20">
-                 <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-cyan-500/20 text-cyan-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-cyan-500/30">
-                       Science
-                    </span>
-                    <span className="flex items-center gap-1 text-slate-400 text-[10px]">
-                       <Icons.Clock size={10} /> {selectedLesson?.duration}
-                    </span>
-                 </div>
-                 
-                 <h1 className="text-3xl font-bold mb-4 leading-tight">{selectedLesson?.title}</h1>
-                 
-                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-700">
-                    <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium transition shadow-lg shadow-indigo-500/20">
-                       <Icons.PlayCircle size={16} /> ฟังบรรยาย
-                    </button>
-                    <button className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full">
-                       <Icons.Share2 size={18} />
-                    </button>
-                    <button className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-full">
-                       <Icons.Download size={18} />
-                    </button>
-                 </div>
-
-                 <div className="prose prose-invert prose-sm max-w-none">
-                    {selectedLesson?.content}
-                 </div>
-
-                 <div className="mt-8 pt-4 border-t border-slate-700 flex justify-between items-center text-sm text-slate-400">
-                    <span>บทเรียนถัดไป</span>
-                    <button className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-medium">
-                       สำรวจอวกาศ <Icons.ChevronRight size={16} />
-                    </button>
-                 </div>
-              </div>
+        const ClampMeterTool = ({ x, y, value, onMouseDown }) => (
+            <div 
+                onMouseDown={onMouseDown}
+                className="absolute z-50 cursor-move group"
+                style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
+            >
+                <div className="relative w-24 h-40">
+                    <div className="absolute top-0 left-0 w-24 h-24 border-[12px] border-orange-500 rounded-full border-b-transparent rotate-45 shadow-xl"></div>
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-24 bg-orange-500 rounded-lg shadow-lg flex flex-col items-center justify-center border-2 border-orange-600">
+                        <div className="bg-gray-200 w-12 h-8 rounded border border-gray-400 font-mono text-center flex items-center justify-center text-gray-800 font-bold">
+                            {value !== null ? value.toFixed(2) : '---'}
+                        </div>
+                        <div className="text-[8px] font-bold text-white mt-1">แอมป์มิเตอร์</div>
+                        <div className="mt-2 w-8 h-8 rounded-full border-4 border-orange-700 bg-orange-400"></div>
+                    </div>
+                </div>
             </div>
-          );
+        );
 
-          const ARModeView = () => (
-            <div className="relative h-full w-full bg-black overflow-hidden flex flex-col">
-              {flashTrigger && <div className="absolute inset-0 bg-white z-[60] animate-fadeOut pointer-events-none"></div>}
+        const VoltmeterDisplay = ({ value }) => (
+            <div className="absolute bottom-4 right-4 bg-yellow-400 p-3 rounded-xl border-4 border-gray-800 shadow-2xl w-40 z-40">
+                <div className="bg-[#9ca3af] h-12 mb-2 rounded border-2 border-gray-600 shadow-inner flex items-center justify-end px-3 font-mono text-2xl text-gray-900 font-bold relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10 pointer-events-none"></div>
+                    {value !== null ? value.toFixed(1) : '---'} <span className="text-sm ml-1">V</span>
+                </div>
+                <div className="flex justify-between items-center px-1">
+                    <div className="text-[10px] font-bold text-yellow-900">โวลต์มิเตอร์</div>
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                </div>
+            </div>
+        );
 
-              <div className="absolute inset-0 z-0">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px] [perspective:1000px] [transform:rotateX(60deg)_translateY(-100px)] origin-top opacity-30"></div>
-              </div>
+        // --- Guide Component ---
 
-              <div className="absolute inset-0 z-10 pointer-events-none p-4 flex flex-col justify-between">
-                 <div className="flex justify-between items-start">
-                    <button onClick={() => setCurrentView('home')} className="pointer-events-auto bg-black/40 backdrop-blur border border-white/20 p-2 rounded-full text-white hover:bg-white/20">
-                       <Icons.ArrowLeft />
-                    </button>
-                    <div className="bg-cyan-900/80 backdrop-blur px-4 py-1 rounded-full border border-cyan-500/50 text-cyan-300 text-xs font-mono animate-pulse">
-                       AR TRACKING ACTIVE
-                    </div>
-                    <div className="flex gap-2 pointer-events-auto">
-                       <button className="bg-black/40 backdrop-blur border border-white/20 p-2 rounded-full text-white hover:bg-white/20"><Icons.Volume2 size={20}/></button>
-                       <button className="bg-black/40 backdrop-blur border border-white/20 p-2 rounded-full text-white hover:bg-white/20"><Icons.Maximize size={20}/></button>
-                    </div>
-                 </div>
-
-                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    {arScanning ? (
-                       <div className="relative">
-                          <div className="w-64 h-64 border-2 border-cyan-500/30 rounded-lg animate-pulse flex items-center justify-center">
-                             <div className="text-cyan-400 font-mono text-sm">SCANNING SURFACE...</div>
-                          </div>
-                          <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-cyan-400"></div>
-                          <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-cyan-400"></div>
-                          <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-cyan-400"></div>
-                          <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
-                       </div>
-                    ) : null}
-                 </div>
-
-                 <div className="pointer-events-auto w-full flex flex-col items-center gap-4 mb-20 z-20">
-                    {!arScanning && !selectedPlanet && (
-                       <div className="bg-black/60 backdrop-blur px-6 py-2 rounded-full text-white text-sm animate-bounce mb-2">
-                          แตะที่ดาวเคราะห์เพื่อเรียนรู้
-                       </div>
-                    )}
-                    {!arScanning && (
-                       <button 
-                          onClick={handleSnapshot}
-                          className="w-16 h-16 rounded-full border-4 border-white bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/40 transition active:scale-90"
-                          aria-label="Take Snapshot"
-                       >
-                          <div className="w-12 h-12 bg-white rounded-full shadow-lg"></div>
-                       </button>
-                    )}
-                 </div>
-              </div>
-
-              {!arScanning && (
-                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-auto [perspective:1000px] z-5">
-                    <div className="relative w-full h-full [transform-style:preserve-3d] [transform:rotateX(60deg)_scale(0.6)]">
-                       
-                       {planets.map((planet) => (
-                          <div key={planet.id} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 hover:border-cyan-500/50 transition-colors"
-                               style={{ width: planet.orbit, height: planet.orbit }}>
-                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
-                                  style={{ animation: `orbit ${planet.speed} linear infinite` }}>
-                                <div 
-                                   onClick={() => setSelectedPlanet(planet)}
-                                   className={`${planet.size} ${planet.color} rounded-full shadow-[0_0_15px_rgba(255,255,255,0.5)] transform hover:scale-125 transition-transform duration-300 relative`}
-                                >
-                                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/70 px-2 py-0.5 rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity [transform:rotateX(-60deg)]">
-                                      {planet.name}
-                                   </div>
+        const WiringGuideModal = ({ onClose }) => {
+            return (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto animate-in zoom-in duration-200">
+                        <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl sticky top-0 z-10">
+                            <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
+                                <BookOpen className="text-blue-600"/> คู่มือการต่อวงจรเบื้องต้น
+                            </h2>
+                            <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors"><X size={24}/></button>
+                        </div>
+                        
+                        <div className="p-6 space-y-8">
+                            {/* Scene 1 */}
+                            <section>
+                                <h3 className="font-bold text-lg text-blue-800 mb-3 flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">1</span> 
+                                    ระบบพื้นฐาน (DC to AC)
+                                </h3>
+                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                                    <p className="font-semibold text-gray-700">ลำดับการเชื่อมต่อ:</p>
+                                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-2">
+                                        <li><strong>แผงโซล่า (+)</strong> <span className="text-gray-400">--&gt;</span> <strong>เบรกเกอร์ (เข้า)</strong> <span className="text-gray-400">--&gt;</span> <strong>อินเวอร์เตอร์ (DC+)</strong></li>
+                                        <li><strong>แผงโซล่า (-)</strong> <span className="text-gray-400">--&gt;</span> <strong>เบรกเกอร์ (เข้า)</strong> <span className="text-gray-400">--&gt;</span> <strong>อินเวอร์เตอร์ (DC-)</strong></li>
+                                        <li><strong>อินเวอร์เตอร์ (L/N)</strong> <span className="text-gray-400">--&gt;</span> <strong>หลอดไฟ (L/N)</strong></li>
+                                    </ul>
+                                    <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-200">
+                                        * ข้อควรระวัง: อย่าต่อไฟ 220V เข้าที่ช่อง DC ของอินเวอร์เตอร์
+                                    </div>
                                 </div>
-                             </div>
-                          </div>
-                       ))}
+                            </section>
+
+                            {/* Scene 2 */}
+                            <section>
+                                <h3 className="font-bold text-lg text-blue-800 mb-3 flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">2</span> 
+                                    ระบบสำรองไฟ (Battery System)
+                                </h3>
+                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                                    <p className="font-semibold text-gray-700">การต่อพ่วงแบตเตอรี่:</p>
+                                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-2">
+                                        <li>ต่อ <strong>แผงโซล่า</strong> เข้ากับ <strong>แบตเตอรี่</strong> โดยตรง (ขนาน: บวกต่อบวก, ลบต่อลบ)</li>
+                                        <li>หรือต่อผ่าน <strong>Charger</strong> (ในแอพนี้ให้ต่อตรงหรือผ่านเบรกเกอร์ได้เลย)</li>
+                                        <li>จากนั้นต่อไฟจาก <strong>แบตเตอรี่</strong> ไปเข้า <strong>อินเวอร์เตอร์</strong></li>
+                                    </ul>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        * แบตเตอรี่ช่วยให้ระบบทำงานได้แม้ไม่มีแสงแดด (ปรับความเข้มแสงเป็น 0% เพื่อทดสอบ)
+                                    </p>
+                                </div>
+                            </section>
+
+                            {/* Scene 3 */}
+                            <section>
+                                <h3 className="font-bold text-lg text-blue-800 mb-3 flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">3</span> 
+                                    การกรองกระแส (Capacitor)
+                                </h3>
+                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
+                                    <p className="font-semibold text-gray-700">วิธีติดตั้ง:</p>
+                                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-2">
+                                        <li>ต่อคร่อมขั้วแบตเตอรี่หรือขั้วอินพุตของอินเวอร์เตอร์</li>
+                                        <li><strong>Capacitor (+)</strong> <span className="text-gray-400">--&gt;</span> <strong>สายไฟบวกหลัก</strong></li>
+                                        <li><strong>Capacitor (-)</strong> <span className="text-gray-400">--&gt;</span> <strong>สายไฟลบหลัก</strong></li>
+                                    </ul>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div className="p-4 border-t bg-gray-50 rounded-b-xl text-right">
+                            <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors">
+                                เข้าใจแล้ว
+                            </button>
+                        </div>
                     </div>
-                 </div>
-              )}
-
-              {showShareModal && (
-                 <div className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fadeIn">
-                    <div className="flex justify-end w-full max-w-sm mb-2">
-                       <button onClick={() => setShowShareModal(false)} className="text-white hover:text-red-400 p-2">
-                          <Icons.X size={24} />
-                       </button>
-                    </div>
-                    
-                    <div className="bg-white p-4 pb-8 rounded-xl shadow-2xl rotate-2 transform transition hover:rotate-0 w-full max-w-xs mb-8">
-                       <div className="bg-slate-900 h-64 rounded-lg mb-4 flex flex-col items-center justify-center overflow-hidden relative shadow-inner">
-                          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-60"></div>
-                          <div className="relative z-10 flex flex-col items-center">
-                             {selectedPlanet ? (
-                                <React.Fragment>
-                                   <div className={`w-24 h-24 ${selectedPlanet.color} rounded-full shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-4`}></div>
-                                   <span className="text-white font-bold bg-black/50 px-3 py-1 rounded-full text-sm">{selectedPlanet.name}</span>
-                                </React.Fragment>
-                             ) : (
-                                <React.Fragment>
-                                   <div className="w-20 h-20 bg-orange-200 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-2 relative">
-                                      <div className="absolute w-32 h-8 bg-orange-300/50 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border border-white/20 transform rotate-12"></div>
-                                   </div>
-                                   <span className="text-white font-bold bg-black/50 px-3 py-1 rounded-full text-sm">Space Adventure</span>
-                                </React.Fragment>
-                             )}
-                          </div>
-                          <div className="absolute bottom-2 right-2 text-[10px] text-white/50 font-mono">AR CAMERA • 12/05/2026</div>
-                       </div>
-                       <div className="flex items-center justify-between px-2">
-                          <div className="flex flex-col">
-                             <span className="font-handwriting font-bold text-slate-800 text-lg">My Space Journey! 🚀</span>
-                             <span className="text-xs text-slate-400">#AstroVerseAR #SpaceCadet</span>
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                             <Icons.User className="text-indigo-600 w-6 h-6" />
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4 w-full max-w-xs">
-                       <button className="flex flex-col items-center gap-1 group">
-                          <div className="w-12 h-12 bg-[#1877F2] rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition">
-                             <Icons.Facebook size={20} />
-                          </div>
-                          <span className="text-xs text-white/70">Facebook</span>
-                       </button>
-                       <button className="flex flex-col items-center gap-1 group">
-                          <div className="w-12 h-12 bg-black border border-white/20 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition">
-                             <Icons.Twitter size={20} />
-                          </div>
-                          <span className="text-xs text-white/70">X</span>
-                       </button>
-                       <button className="flex flex-col items-center gap-1 group">
-                          <div className="w-12 h-12 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition">
-                             <Icons.Instagram size={20} />
-                          </div>
-                          <span className="text-xs text-white/70">Instagram</span>
-                       </button>
-                       <button className="flex flex-col items-center gap-1 group">
-                          <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white shadow-lg group-hover:bg-white/30 transition">
-                             <Icons.Download size={20} />
-                          </div>
-                          <span className="text-xs text-white/70">Save</span>
-                       </button>
-                    </div>
-                 </div>
-              )}
-
-              {!showShareModal && selectedPlanet && (
-                 <div className="absolute bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg rounded-t-3xl p-6 border-t border-cyan-500/30 shadow-2xl z-50 transform transition-transform duration-300">
-                    <div className="flex justify-between items-start mb-4">
-                       <div className="flex items-center gap-4">
-                          <div className={`w-16 h-16 ${selectedPlanet.color} rounded-full shadow-inner`}></div>
-                          <div>
-                             <h2 className="text-xl font-bold text-white">{selectedPlanet.name}</h2>
-                             <span className="text-xs px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/30">
-                                {selectedPlanet.type}
-                             </span>
-                          </div>
-                       </div>
-                       <button onClick={() => setSelectedPlanet(null)} className="text-slate-400 hover:text-white">
-                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">✕</div>
-                       </button>
-                    </div>
-                    
-                    <p className="text-slate-300 text-sm mb-4 leading-relaxed">
-                       {selectedPlanet.desc}
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                       <div className="bg-black/30 p-3 rounded-lg">
-                          <div className="text-xs text-slate-500">Distance from Sun</div>
-                          <div className="text-cyan-400 font-mono">{selectedPlanet.dist}</div>
-                       </div>
-                       <div className="bg-black/30 p-3 rounded-lg">
-                          <div className="text-xs text-slate-500">Rotation Period</div>
-                          <div className="text-cyan-400 font-mono">24 Hours</div>
-                       </div>
-                    </div>
-
-                    <button className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 py-3 rounded-xl text-white font-bold shadow-lg hover:shadow-cyan-500/20 transition flex items-center justify-center gap-2">
-                       สำรวจพื้นผิว <Icons.ChevronRight size={18} />
-                    </button>
-                 </div>
-              )}
-            </div>
-          );
-
-          const QuizView = () => (
-            <div className="flex flex-col h-full bg-slate-900 text-white p-6 no-scrollbar">
-              <div className="flex items-center gap-4 mb-8">
-                <button onClick={() => setCurrentView('home')} className="p-2 rounded-full bg-slate-800 hover:bg-slate-700">
-                  <Icons.ArrowLeft size={20} />
-                </button>
-                <h2 className="text-xl font-bold">ภารกิจ: ระบบสุริยะ</h2>
-              </div>
-
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl mb-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10"><Icons.Award size={80} /></div>
-                <div className="flex justify-between text-sm text-slate-400 mb-4">
-                   <span>Question 1/5</span>
-                   <span className="text-yellow-400 font-bold">Score: 0</span>
                 </div>
-                <h3 className="text-lg font-medium mb-6 relative z-10">ดาวเคราะห์ดวงใดที่มีวงแหวนที่สวยงามและชัดเจนที่สุด?</h3>
-                
-                <div className="space-y-3 relative z-10">
-                  <button className="w-full text-left p-4 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-500 hover:bg-cyan-900/20 transition flex items-center justify-between group">
-                     <span>A. ดาวพฤหัส (Jupiter)</span>
-                     <div className="w-4 h-4 rounded-full border border-slate-500 group-hover:border-cyan-400"></div>
-                  </button>
-                  <button className="w-full text-left p-4 rounded-xl bg-gradient-to-r from-cyan-900/40 to-slate-900 border border-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.2)] transition flex items-center justify-between">
-                     <span>B. ดาวเสาร์ (Saturn)</span>
-                     <div className="w-4 h-4 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
-                  </button>
-                  <button className="w-full text-left p-4 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-500 hover:bg-cyan-900/20 transition flex items-center justify-between group">
-                     <span>C. ดาวอังคาร (Mars)</span>
-                     <div className="w-4 h-4 rounded-full border border-slate-500 group-hover:border-cyan-400"></div>
-                  </button>
-                  <button className="w-full text-left p-4 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-500 hover:bg-cyan-900/20 transition flex items-center justify-between group">
-                     <span>D. โลก (Earth)</span>
-                     <div className="w-4 h-4 rounded-full border border-slate-500 group-hover:border-cyan-400"></div>
-                  </button>
-                </div>
-              </div>
-
-              <button onClick={() => setCurrentView('home')} className="mt-auto w-full bg-indigo-600 py-3 rounded-xl font-bold hover:bg-indigo-500 transition">
-                ส่งคำตอบ
-              </button>
-            </div>
-          );
-
-          return (
-            <div className="w-full max-w-md h-[850px] bg-black rounded-[40px] border-8 border-gray-800 shadow-2xl overflow-hidden relative">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-xl z-50"></div>
-
-              <div className="h-[92%] overflow-hidden">
-                {currentView === 'home' && <HomeView />}
-                {currentView === 'ar' && <ARModeView />}
-                {currentView === 'quiz' && <QuizView />}
-                {currentView === 'lesson' && <LessonView />}
-              </div>
-
-              <div className="absolute bottom-0 w-full h-[8%] bg-slate-900 border-t border-slate-800 flex justify-around items-center z-40">
-                <button 
-                  onClick={() => setCurrentView('home')} 
-                  className={`flex flex-col items-center gap-1 ${currentView === 'home' || currentView === 'lesson' ? 'text-cyan-400' : 'text-slate-500'}`}
-                >
-                  <Icons.BookOpen size={20} />
-                  <span className="text-[10px]">Learn</span>
-                </button>
-                
-                <div className="relative -top-5">
-                  <button 
-                    onClick={() => setCurrentView('ar')}
-                    className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(6,182,212,0.6)] border-4 border-slate-900 transform hover:scale-105 transition"
-                  >
-                    <Icons.Camera size={28} />
-                  </button>
-                </div>
-
-                <button 
-                  onClick={() => setCurrentView('quiz')}
-                  className={`flex flex-col items-center gap-1 ${currentView === 'quiz' ? 'text-cyan-400' : 'text-slate-500'}`}
-                >
-                  <Icons.Crosshair size={20} />
-                  <span className="text-[10px]">Mission</span>
-                </button>
-              </div>
-            </div>
-          );
+            );
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<AstroVerseApp />);
+        // --- Main App ---
+
+        function SolarSimulatorPro() {
+        const [components, setComponents] = useState([]);
+        const [wires, setWires] = useState([]); 
+        const [sunIntensity, setSunIntensity] = useState(80);
+        const [dragInfo, setDragInfo] = useState(null); 
+        const [tempWire, setTempWire] = useState(null);
+        
+        // Selection & Properties
+        const [selectedObj, setSelectedObj] = useState(null); // { type: 'comp'|'wire', id: string }
+        
+        // Guide State
+        const [showGuide, setShowGuide] = useState(false);
+
+        // Tools State
+        const [activeTool, setActiveTool] = useState(null); 
+        const [probePos, setProbePos] = useState({ 
+            red: { x: 300, y: 300, term: null }, 
+            black: { x: 350, y: 300, term: null } 
+        });
+        const [clampPos, setClampPos] = useState({ x: 400, y: 400, wireId: null });
+        
+        // Simulation State
+        const [isRunning, setIsRunning] = useState(false);
+        const [simResults, setSimResults] = useState({ voltages: new Map(), wireCurrents: new Map(), states: {} });
+        const [notification, setNotification] = useState(null);
+
+        // Keyboard Listener for Delete
+        useEffect(() => {
+            const handleKeyDown = (e) => {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    if (selectedObj) {
+                        if (selectedObj.type === 'wire') {
+                            setWires(prev => prev.filter(w => w.id !== selectedObj.id));
+                            setSelectedObj(null);
+                        } else if (selectedObj.type === 'comp') {
+                            setComponents(prev => prev.filter(c => c.id !== selectedObj.id));
+                            // Remove wires attached to this comp
+                            setWires(prev => prev.filter(w => w.from !== selectedObj.id && w.to !== selectedObj.id));
+                            setSelectedObj(null);
+                        }
+                        if (isRunning) { setIsRunning(false); setNotification(null); }
+                    }
+                }
+            };
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [selectedObj, isRunning]);
+
+        // --- Logic Engine (ระบบจำลองไฟฟ้า) ---
+        useEffect(() => {
+            const nets = [];
+            const getNet = (id) => nets.find(s => s.has(id));
+
+            // 1. สร้าง Net (จุดเชื่อมต่อ)
+            components.forEach(c => {
+            const spec = SPECS[c.type];
+            if(spec.terminals) {
+                spec.terminals.forEach(t => {
+                    const s = new Set();
+                    s.add(`${c.id}_${t.id}`);
+                    nets.push(s);
+                });
+            }
+            });
+
+            wires.forEach(w => {
+                const net1 = getNet(`${w.from}_${w.fromTerm}`);
+                const net2 = getNet(`${w.to}_${w.toTerm}`);
+                if(net1 && net2 && net1 !== net2) {
+                    net2.forEach(i => net1.add(i));
+                    nets.splice(nets.indexOf(net2), 1);
+                }
+            });
+
+            // 2. คำนวณแรงดัน (Voltage)
+            const netVoltages = new Map();
+            const compStates = {};
+            const wireCurrents = new Map();
+
+            // 2.1 แหล่งจ่าย (Sources)
+            
+            // แผงโซล่า (PV)
+            components.filter(c => c.type === COMPONENT_TYPES.PANEL).forEach(pv => {
+                const v = 40 * (sunIntensity/100);
+                const posNet = getNet(`${pv.id}_pos`);
+                const negNet = getNet(`${pv.id}_neg`);
+                if(!netVoltages.has(negNet)) netVoltages.set(negNet, 0);
+                const currentPosV = netVoltages.get(posNet) || 0;
+                const newPosV = (netVoltages.get(negNet) || 0) + v;
+                netVoltages.set(posNet, Math.max(currentPosV, newPosV));
+                compStates[pv.id] = { outputV: v, isPowered: v > 5 };
+            });
+
+            // แบตเตอรี่ & Capacitor
+            components.filter(c => c.type === COMPONENT_TYPES.BATTERY).forEach(bat => {
+                const v = 12.8; 
+                const posNet = getNet(`${bat.id}_pos`);
+                const negNet = getNet(`${bat.id}_neg`);
+                if(!netVoltages.has(negNet)) netVoltages.set(negNet, 0);
+                const currentPosV = netVoltages.get(posNet) || 0;
+                const newPosV = (netVoltages.get(negNet) || 0) + v;
+                netVoltages.set(posNet, Math.max(currentPosV, newPosV));
+                compStates[bat.id] = { outputV: v, isPowered: true };
+            });
+
+            // Capacitor just acts as a pass-through node logic-wise here, but we could add charge logic visual
+            // For now, it just inherits voltage from nets.
+
+            // 2.2 อุปกรณ์ส่งผ่านและโหลด
+            for(let i=0; i<8; i++) {
+                components.forEach(c => {
+                    // อินเวอร์เตอร์ (แปลงไฟ DC -> AC)
+                    if(c.type === COMPONENT_TYPES.INVERTER) {
+                        const dcPos = getNet(`${c.id}_dc_pos`);
+                        const dcNeg = getNet(`${c.id}_dc_neg`);
+                        const acL = getNet(`${c.id}_ac_l`);
+                        const acN = getNet(`${c.id}_ac_n`);
+                        const vIn = (netVoltages.get(dcPos) || 0) - (netVoltages.get(dcNeg) || 0);
+                        
+                        if(vIn > 11 && vIn < 45) { 
+                            compStates[c.id] = { isPowered: true };
+                            if(!netVoltages.has(acN)) netVoltages.set(acN, 0);
+                            netVoltages.set(acL, 220); 
+                        } else {
+                            compStates[c.id] = { isPowered: false };
+                            netVoltages.set(acL, 0);
+                        }
+                    }
+                    // เบรกเกอร์ (สะพานไฟ)
+                    if(c.type === COMPONENT_TYPES.BREAKER) {
+                        const in1 = getNet(`${c.id}_in_1`); const out1 = getNet(`${c.id}_out_1`);
+                        const in2 = getNet(`${c.id}_in_2`); const out2 = getNet(`${c.id}_out_2`);
+                        if(netVoltages.has(in1)) netVoltages.set(out1, netVoltages.get(in1));
+                        else if(netVoltages.has(out1)) netVoltages.set(in1, netVoltages.get(out1));
+                        if(netVoltages.has(in2)) netVoltages.set(out2, netVoltages.get(in2));
+                        else if(netVoltages.has(out2)) netVoltages.set(in2, netVoltages.get(out2));
+                        compStates[c.id] = { isPowered: true };
+                    }
+                    // โหลดไฟฟ้า
+                    if(['socket', 'bulb', 'motor'].includes(c.type)) {
+                        const l = getNet(`${c.id}_l`);
+                        const n = getNet(`${c.id}_n`);
+                        const vDiff = (netVoltages.get(l) || 0) - (netVoltages.get(n) || 0);
+                        
+                        let hasPower = false;
+                        if (c.type === 'motor') {
+                            hasPower = Math.abs(vDiff) > 10; 
+                        } else {
+                            hasPower = Math.abs(vDiff) > 200;
+                        }
+                        
+                        compStates[c.id] = { isPowered: hasPower, physicsPowered: hasPower };
+                    }
+                });
+            }
+
+            // 3. คำนวณกระแส (Current Calculation based on Watts)
+            if (isRunning) {
+                components.filter(c => ['socket', 'bulb', 'motor'].includes(c.type) && compStates[c.id]?.physicsPowered).forEach(load => {
+                    // Calculate Current I = P / V
+                    const watts = load.watts || SPECS[load.type].defaultWatts;
+                    const voltage = SPECS[load.type].voltageRef || 220;
+                    const current = watts / voltage;
+                    
+                    // Apply current to wires connected to L
+                    const lNet = getNet(`${load.id}_l`);
+                    wires.forEach(w => {
+                        const wNet = getNet(`${w.from}_${w.fromTerm}`);
+                        if (wNet === lNet) {
+                            wireCurrents.set(w.id, (wireCurrents.get(w.id) || 0) + current);
+                        }
+                    });
+                    // Apply current to wires connected to N
+                    const nNet = getNet(`${load.id}_n`);
+                    wires.forEach(w => {
+                        const wNet = getNet(`${w.from}_${w.fromTerm}`);
+                        if (wNet === nNet) {
+                            wireCurrents.set(w.id, (wireCurrents.get(w.id) || 0) + current);
+                        }
+                    });
+                });
+            }
+
+            setSimResults({ voltages: netVoltages, wireCurrents, states: compStates, nets });
+
+        }, [components, wires, sunIntensity, isRunning]);
+
+        // --- Interaction Handlers ---
+
+        const handleGlobalMove = (e) => {
+            const { clientX, clientY } = e;
+            
+            if(dragInfo?.type === 'comp') {
+                setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: clientX - dragInfo.offsetX, y: clientY - dragInfo.offsetY} : c));
+            }
+            
+            if(dragInfo?.type === 'wireHandle') {
+                setWires(prev => prev.map(w => w.id === dragInfo.id ? { ...w, customOffset: (clientY - dragInfo.baseY) } : w));
+            }
+
+            if(dragInfo?.type === 'probe') {
+                setProbePos(prev => ({ ...prev, [dragInfo.color]: { x: clientX, y: clientY, term: null } }));
+            }
+
+            if(dragInfo?.type === 'clamp') {
+                setClampPos({ x: clientX, y: clientY, wireId: null });
+            }
+
+            if(tempWire) {
+                setTempWire(prev => ({...prev, x2: clientX, y2: clientY}));
+            }
+        };
+
+        const handleGlobalMouseUp = (e) => {
+            const { clientX, clientY } = e;
+
+            if (dragInfo?.type === 'probe') {
+                const hit = findHitTerminal(clientX, clientY);
+                if(hit) {
+                    setProbePos(prev => ({ ...prev, [dragInfo.color]: { x: hit.x, y: hit.y, term: hit } }));
+                }
+            }
+
+            if (dragInfo?.type === 'clamp') {
+                const hit = findHitWire(clientX, clientY);
+                if (hit) {
+                    setClampPos({ x: clientX, y: hit.y, wireId: hit.id });
+                }
+            }
+
+            if(tempWire) {
+                const hit = findHitTerminal(clientX, clientY);
+                if(hit && (hit.compId !== tempWire.from || hit.termId !== tempWire.fromTerm)) {
+                    setWires(prev => [...prev, {
+                        id: Date.now(),
+                        from: tempWire.from, fromTerm: tempWire.fromTerm,
+                        to: hit.compId, toTerm: hit.termId,
+                        customOffset: 0
+                    }]);
+                }
+                setTempWire(null);
+            }
+
+            setDragInfo(null);
+        };
+
+        const handleWireClick = (e, wireId) => {
+            e.stopPropagation();
+            setSelectedObj({ type: 'wire', id: wireId });
+        };
+
+        const handleCompClick = (e, comp) => {
+            // Allow drag but also select
+            // Selection logic is handled via props update mostly, but visual selection can be here
+            setSelectedObj({ type: 'comp', id: comp.id });
+        };
+
+        const deleteSelected = () => {
+            if (selectedObj) {
+                if (selectedObj.type === 'wire') {
+                    setWires(prev => prev.filter(w => w.id !== selectedObj.id));
+                } else {
+                    setComponents(prev => prev.filter(c => c.id !== selectedObj.id));
+                    setWires(prev => prev.filter(w => w.from !== selectedObj.id && w.to !== selectedObj.id));
+                }
+                setSelectedObj(null);
+                if (isRunning) { setIsRunning(false); setNotification(null); }
+            }
+        };
+
+        const findHitTerminal = (mx, my) => {
+            let hit = null;
+            components.forEach(c => {
+                const spec = SPECS[c.type];
+                if(!spec.terminals) return;
+                spec.terminals.forEach(t => {
+                    const tx = c.x + t.x;
+                    const ty = c.y + spec.height + 5;
+                    if(Math.hypot(mx - tx, my - ty) < 20) {
+                        hit = { compId: c.id, termId: t.id, x: tx, y: ty };
+                    }
+                });
+            });
+            return hit;
+        };
+
+        const findHitWire = (mx, my) => {
+            for(let w of wires) {
+                const c1 = components.find(c => c.id === w.from);
+                const c2 = components.find(c => c.id === w.to);
+                if(!c1 || !c2) continue;
+                
+                const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
+                const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
+                const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
+                const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
+                const defaultMidY = Math.max(p1.y, p2.y) + 40;
+                const midY = w.customOffset ? (Math.max(p1.y, p2.y) + 40 + w.customOffset) : defaultMidY;
+
+                const minX = Math.min(p1.x, p2.x);
+                const maxX = Math.max(p1.x, p2.x);
+                if (mx >= minX && mx <= maxX && Math.abs(my - midY) < 20) {
+                    return { id: w.id, y: midY };
+                }
+            }
+            return null;
+        }
+
+        const getVoltageReading = () => {
+            if (!probePos.red.term || !probePos.black.term) return null;
+            const getNetVoltage = (term) => {
+                const net = simResults.nets.find(n => n.has(`${term.compId}_${term.termId}`));
+                return net ? (simResults.voltages.get(net) || 0) : 0;
+            };
+            const v1 = getNetVoltage(probePos.red.term);
+            const v2 = getNetVoltage(probePos.black.term);
+            return Math.abs(v1 - v2);
+        };
+
+        const getCurrentReading = () => {
+            if (!clampPos.wireId) return 0;
+            return simResults.wireCurrents.get(clampPos.wireId) || 0;
+        };
+
+        // --- Helper Functions ---
+
+        const addComponent = (type) => {
+            const spec = SPECS[type];
+            setComponents([...components, { 
+                id: Date.now().toString(), 
+                type, 
+                x: 100 + components.length * 20, 
+                y: 100 + components.length * 20,
+                watts: spec.defaultWatts // Initial watts
+            }]);
+            if(isRunning) { setIsRunning(false); setNotification(null); }
+        };
+
+        const updateComponentWatts = (id, newWatts) => {
+            setComponents(prev => prev.map(c => c.id === id ? { ...c, watts: parseInt(newWatts) } : c));
+            if(isRunning) { setIsRunning(false); setNotification(null); } // Reset sim to recalculate
+        };
+
+        const runCheck = () => {
+            setIsRunning(true);
+            setTimeout(() => {
+                const powered = components.filter(c => ['socket','bulb','motor'].includes(c.type)).some(c => simResults.states[c.id]?.physicsPowered);
+                setNotification({ 
+                    type: powered ? 'success' : 'error', 
+                    message: powered ? 'ระบบทำงานปกติ (System OK)' : 'ไฟไม่เข้าระบบ (No Power)' 
+                });
+            }, 200);
+        };
+
+        const getSelectedComponent = () => components.find(c => c.id === selectedObj?.id);
+
+        return (
+            <div className="flex h-screen bg-slate-100 font-sans select-none overflow-hidden" 
+                onMouseMove={handleGlobalMove} onMouseUp={handleGlobalMouseUp} onClick={() => setSelectedObj(null)}>
+            
+            {/* Show Guide Modal if active */}
+            {showGuide && <WiringGuideModal onClose={() => setShowGuide(false)} />}
+
+            {/* แถบเครื่องมือซ้าย (Sidebar) */}
+            <div className="w-64 bg-white border-r shadow-xl flex flex-col z-30" onClick={e => e.stopPropagation()}>
+                <div className="p-4 bg-gray-900 text-white shadow-md flex justify-between items-center">
+                    <h1 className="text-xl font-bold flex items-center gap-2 text-yellow-400"><Zap className="fill-current"/> Solar Sim Thai</h1>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                    
+                    {/* ปุ่มเปิดคู่มือ */}
+                    <button 
+                        onClick={() => setShowGuide(true)}
+                        className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 p-2 rounded-lg border border-blue-200 transition-colors font-bold mb-2"
+                    >
+                        <BookOpen size={18}/> คู่มือการต่อวงจร
+                    </button>
+
+                    {/* ควบคุมการจำลอง */}
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        {!isRunning ? (
+                            <button onClick={runCheck} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg shadow-lg transition-all font-bold">
+                                <Play size={20} fill="currentColor"/> เริ่มจำลองการทำงาน
+                            </button>
+                        ) : (
+                            <button onClick={() => { setIsRunning(false); setNotification(null); }} className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg shadow-lg transition-all font-bold">
+                                <RotateCcw size={20} /> หยุด / แก้ไข
+                            </button>
+                        )}
+                    </div>
+
+                    {/* แสงอาทิตย์ */}
+                    <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                        <label className="text-xs font-bold text-blue-800 uppercase flex justify-between">
+                            <span>ความเข้มแสงอาทิตย์</span>
+                            <span>{sunIntensity}%</span>
+                        </label>
+                        <input 
+                            type="range" 
+                            min="0" max="100" 
+                            value={sunIntensity} 
+                            onChange={(e) => setSunIntensity(parseInt(e.target.value))}
+                            className="w-full mt-2 h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                        />
+                    </div>
+
+                    {/* เครื่องมือวัด */}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">เครื่องมือวัด (Measuring)</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button 
+                                onClick={() => { setActiveTool(activeTool === 'volt' ? null : 'volt'); setProbePos({ red: {x:300, y:300, term:null}, black: {x:350, y:300, term:null} }); }}
+                                className={`p-3 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${activeTool === 'volt' ? 'bg-yellow-50 border-yellow-400 text-yellow-700' : 'bg-white border-gray-100 hover:border-blue-200'}`}
+                            >
+                                <div className="w-8 h-8 rounded bg-yellow-400 flex items-center justify-center font-bold text-gray-900 border border-yellow-600">V</div>
+                                <span className="text-xs font-bold">โวลต์มิเตอร์</span>
+                            </button>
+                            <button 
+                                onClick={() => { setActiveTool(activeTool === 'amp' ? null : 'amp'); }}
+                                className={`p-3 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${activeTool === 'amp' ? 'bg-orange-50 border-orange-400 text-orange-700' : 'bg-white border-gray-100 hover:border-blue-200'}`}
+                            >
+                                <div className="w-8 h-8 rounded bg-orange-500 flex items-center justify-center font-bold text-white border border-orange-600">A</div>
+                                <span className="text-xs font-bold">แคลมป์มิเตอร์</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* รายการอุปกรณ์ */}
+                    <div className="space-y-2 pt-4 border-t">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">เพิ่มอุปกรณ์ (Add Components)</label>
+                        {Object.keys(SPECS).map(type => (
+                            <button key={type} onClick={() => addComponent(type)} className="w-full flex items-center gap-3 p-2 bg-white border border-gray-100 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all group shadow-sm">
+                                <div className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded text-gray-500 group-hover:text-blue-600">
+                                    {type === 'panel' ? <Sun size={18}/> : 
+                                    type === 'bulb' ? <Lightbulb size={18}/> : 
+                                    type === 'battery' ? <Battery size={18}/> :
+                                    type === 'capacitor' ? <Cylinder size={18}/> :
+                                    type === 'motor' ? <Fan size={18}/> : <Power size={18}/>}
+                                </div>
+                                <div className="text-left flex-1">
+                                    <div className="text-xs font-bold text-gray-700">{SPECS[type].label.split('(')[0]}</div>
+                                    <div className="text-[9px] text-gray-400">{SPECS[type].label.split('(')[1]?.replace(')', '')}</div>
+                                </div>
+                                <Plus size={14} className="text-gray-300"/>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* พื้นที่ทำงาน (Canvas) */}
+            <div className="flex-1 relative overflow-hidden bg-slate-100" style={{backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px'}}>
+                
+                {/* Properties Panel (Right Side) */}
+                {selectedObj && selectedObj.type === 'comp' && ['bulb', 'motor', 'socket'].includes(getSelectedComponent()?.type) && (
+                    <div className="absolute top-4 right-4 z-50 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 w-64 animate-in slide-in-from-right-10 fade-in duration-300" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <Settings size={16} /> ตั้งค่าอุปกรณ์
+                            </h3>
+                            <button onClick={deleteSelected} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16}/></button>
+                        </div>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 block mb-1">กำลังไฟฟ้า (Watt)</label>
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        type="number" 
+                                        value={getSelectedComponent().watts || ''} 
+                                        onChange={(e) => updateComponentWatts(selectedObj.id, e.target.value)}
+                                        className="w-full border rounded p-2 text-sm"
+                                    />
+                                    <span className="text-sm font-bold text-gray-600">W</span>
+                                </div>
+                                <input 
+                                    type="range" min="10" max="2000" step="10"
+                                    value={getSelectedComponent().watts || 0}
+                                    onChange={(e) => updateComponentWatts(selectedObj.id, e.target.value)}
+                                    className="w-full mt-2 h-1 bg-gray-200 rounded appearance-none cursor-pointer"
+                                />
+                            </div>
+                            <div className="text-[10px] text-gray-400 bg-gray-50 p-2 rounded">
+                                การเปลี่ยนค่า Watt จะส่งผลต่อกระแสไฟฟ้า (Amp) ที่วัดได้
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Wire Selection Controls */}
+                {selectedObj && selectedObj.type === 'wire' && (
+                    <div className="absolute top-4 right-4 z-50 bg-white p-3 rounded-xl shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-gray-700">เลือกสายไฟแล้ว</span>
+                            <button 
+                                onClick={deleteSelected}
+                                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                            >
+                                <Trash2 size={14}/> ลบสายไฟ
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* การแจ้งเตือน (Notifications) */}
+                {notification && (
+                    <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-bounce ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {notification.type === 'success' ? <CheckCircle size={24}/> : <AlertTriangle size={24}/>}
+                        <span className="font-bold">{notification.message}</span>
+                    </div>
+                )}
+
+                <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+                    {/* สายไฟ (Wires) */}
+                    {wires.map(w => {
+                        const c1 = components.find(c => c.id === w.from);
+                        const c2 = components.find(c => c.id === w.to);
+                        if(!c1 || !c2) return null;
+                        const spec1 = SPECS[c1.type]; const spec2 = SPECS[c2.type];
+                        const t1 = spec1.terminals.find(t => t.id === w.fromTerm);
+                        const t2 = spec2.terminals.find(t => t.id === w.toTerm);
+                        
+                        const p1 = { x: c1.x + t1.x, y: c1.y + spec1.height + 5 };
+                        const p2 = { x: c2.x + t2.x, y: c2.y + spec2.height + 5 };
+                        
+                        const defaultMidY = Math.max(p1.y, p2.y) + 40;
+                        const midY = w.customOffset ? (defaultMidY + w.customOffset) : defaultMidY;
+
+                        const path = `M ${p1.x} ${p1.y} L ${p1.x} ${midY} L ${p2.x} ${midY} L ${p2.x} ${p2.y}`;
+                        const midX = (p1.x + p2.x) / 2;
+
+                        const isSelected = selectedObj?.type === 'wire' && selectedObj.id === w.id;
+
+                        return (
+                            <g key={w.id} className="pointer-events-auto group" onClick={(e) => handleWireClick(e, w.id)}>
+                                {/* Hit Area (Invisible) */}
+                                <path d={path} stroke="transparent" strokeWidth="20" fill="none" />
+                                
+                                {/* Selected Outline */}
+                                {isSelected && <path d={path} stroke="#fbbf24" strokeWidth="8" fill="none" strokeLinejoin="round" className="animate-pulse opacity-70"/>}
+
+                                {/* Actual Wire */}
+                                <path d={path} stroke={t1.color === 'red' || t1.color === 'brown' ? '#ef4444' : '#1f2937'} strokeWidth="4" fill="none" strokeLinejoin="round" className="shadow-sm"/>
+                                
+                                {/* ปุ่มจับสำหรับปรับสายไฟ */}
+                                <g 
+                                    transform={`translate(${midX}, ${midY})`} 
+                                    className={`opacity-0 group-hover:opacity-100 cursor-ns-resize transition-opacity ${isSelected ? 'opacity-100' : ''}`}
+                                    onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'wireHandle', id: w.id, baseY: defaultMidY }); }}
+                                >
+                                    <circle r="8" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                                    <GripHorizontal size={10} className="text-blue-500 -translate-x-[5px] -translate-y-[5px]" />
+                                </g>
+                            </g>
+                        );
+                    })}
+                    
+                    {/* สายไฟชั่วคราวขณะลาก */}
+                    {tempWire && (
+                        <path d={`M ${tempWire.x1} ${tempWire.y1} C ${tempWire.x1} ${tempWire.y1+50} ${tempWire.x2} ${tempWire.y2+50} ${tempWire.x2} ${tempWire.y2}`} stroke="#fbbf24" strokeWidth="3" strokeDasharray="6" fill="none" className="animate-pulse"/>
+                    )}
+                </svg>
+
+                {/* อุปกรณ์ (Components) */}
+                {components.map(comp => {
+                    const spec = SPECS[comp.type];
+                    const state = simResults.states[comp.id] || {};
+                    const showPower = isRunning && state.physicsPowered;
+                    const isSelected = selectedObj?.type === 'comp' && selectedObj.id === comp.id;
+
+                    return (
+                        <div key={comp.id} className="absolute group z-10" style={{left: comp.x, top: comp.y}}>
+                            <div 
+                                onMouseDown={(e) => { if(e.button===0) { setDragInfo({ type: 'comp', id: comp.id, offsetX: e.clientX - comp.x, offsetY: e.clientY - comp.y }); handleCompClick(e, comp); } }}
+                                className={`relative transition-transform ${isSelected ? 'scale-105 ring-2 ring-yellow-400 rounded-lg' : ''}`}
+                            >
+                                {isSelected && (
+                                    <button onClick={deleteSelected} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1.5 z-50 shadow-md hover:bg-red-600 animate-in zoom-in duration-200">
+                                        <Trash2 size={12}/>
+                                    </button>
+                                )}
+                                <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-xl">
+                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} />}
+                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} />}
+                                    {comp.type === COMPONENT_TYPES.CAPACITOR && <CapacitorVisual width={spec.width} height={spec.height} />}
+                                    {(comp.type === COMPONENT_TYPES.INVERTER || comp.type === COMPONENT_TYPES.BREAKER) && <BoxVisual width={spec.width} height={spec.height} label={comp.label} subLabel={comp.type === 'inverter' ? "220V Out" : ""} isPowered={showPower} />}
+                                    {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
+                                    {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
+                                    {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
+                                    {comp.type === COMPONENT_TYPES.WIREWAY && <rect x="0" y="0" width={spec.width} height={spec.height} fill="#e5e7eb" stroke="#d1d5db" rx="2" opacity="0.8"/>}
+
+                                    {spec.terminals.map(t => (
+                                        <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} 
+                                            onMouseDown={(e) => { if(e.button===0) setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x + t.x, y1: comp.y + spec.height + 5, x2: comp.x + t.x, y2: comp.y + spec.height + 5 }); }}
+                                        />
+                                    ))}
+                                </svg>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* เครื่องมือวัด (Overlay) */}
+                {activeTool === 'volt' && (
+                    <>
+                        <VoltmeterDisplay value={getVoltageReading()} />
+                        <DraggableProbe type="red" x={probePos.red.x} y={probePos.red.y} onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'red' }); }} />
+                        <DraggableProbe type="black" x={probePos.black.x} y={probePos.black.y} onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'black' }); }} />
+                        {/* สายโพรบ */}
+                        <svg className="absolute inset-0 pointer-events-none z-30">
+                            <path d={`M ${window.innerWidth - 100} ${window.innerHeight - 50} C ${window.innerWidth - 100} ${window.innerHeight - 200}, ${probePos.red.x} ${probePos.red.y + 200}, ${probePos.red.x} ${probePos.red.y}`} stroke="#ef4444" strokeWidth="2" fill="none" opacity="0.5"/>
+                            <path d={`M ${window.innerWidth - 120} ${window.innerHeight - 50} C ${window.innerWidth - 120} ${window.innerHeight - 200}, ${probePos.black.x} ${probePos.black.y + 200}, ${probePos.black.x} ${probePos.black.y}`} stroke="#1f2937" strokeWidth="2" fill="none" opacity="0.5"/>
+                        </svg>
+                    </>
+                )}
+
+                {activeTool === 'amp' && (
+                    <ClampMeterTool x={clampPos.x} y={clampPos.y} value={getCurrentReading()} onMouseDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'clamp' }); }} />
+                )}
+
+            </div>
+            </div>
+        );
+        }
+
+        const container = document.getElementById('root');
+        const root = createRoot(container);
+        root.render(<SolarSimulatorPro />);
     </script>
 </body>
 </html>
