@@ -553,6 +553,16 @@
                 setBatteryState(prev => {
                     const next = { ...prev };
                     
+                    // คำนวณโหลดรวมทั้งระบบ (Total Active Load)
+                    let totalLoadWatts = 0;
+                    components.forEach(c => {
+                         const state = simResults.states[c.id];
+                         // นับโหลดเฉพาะตัวที่ทำงานอยู่ (Powered)
+                         if (['socket', 'bulb', 'motor'].includes(c.type) && state?.physicsPowered) {
+                             totalLoadWatts += (c.watts || SPECS[c.type].defaultWatts);
+                         }
+                    });
+
                     components.filter(c => c.type === COMPONENT_TYPES.BATTERY).forEach(bat => {
                         const currentSoc = prev[bat.id]?.soc ?? 50;
                         let flow = 0;
@@ -562,30 +572,24 @@
                         const posNet = simResults.nets?.find(n => n.has(`${bat.id}_pos`));
                         const netV = simResults.voltages?.get(posNet) || 0;
                         
-                        // Heuristic Logic:
-                        // 1. If Net Voltage > 13.0V => PV is connected and providing power => Charging
-                        if (netV > 13.0) {
+                        // Logic:
+                        // 1. ถ้าแรงดันในระบบสูงกว่า 13.2V แสดงว่ามีไฟจากแผงโซล่าเข้ามา -> ชาร์จ
+                        if (netV > 13.2) {
                             isCharging = true;
-                            // Charge rate depends on Sun (simplified)
-                            flow += 0.5 + (sunIntensity / 100); 
+                            flow += 0.2 + (sunIntensity / 50); // ชาร์จเร็วขึ้นตามความเข้มแสง
                         } 
                         
-                        // 2. Discharging Logic
-                        // If Net Voltage <= 13.0V (Battery is the source) AND there is load connected
-                        // We check if there are currents on wires connected to battery
-                        if (!isCharging && currentSoc > 0) {
-                            let totalAmpsOut = 0;
-                            wires.forEach(w => {
-                                if (w.from === bat.id || w.to === bat.id) {
-                                    totalAmpsOut += (simResults.wireCurrents?.get(w.id) || 0);
-                                }
-                            });
+                        // 2. ถ้าไม่ชาร์จ และมีโหลดทำงาน -> ดึงไฟจากแบตเตอรี่
+                        if (!isCharging && currentSoc > 0 && totalLoadWatts > 0) {
+                            // คำนวณกระแสที่ต้องจ่าย (I = P/V) สมมติแรงดัน 12V
+                            const dischargeAmps = totalLoadWatts / 12;
                             
-                            // To account for Inverter step-up, we should look at loads.
-                            // Simplified: If battery node has high current => Discharge
-                            if (totalAmpsOut > 0.1) {
-                                flow -= totalAmpsOut * 0.5; // Discharge rate proportional to load
-                            }
+                            // ลด % แบตเตอรี่ (คูณค่าคงที่เพื่อให้เห็นผลเร็วขึ้นในการจำลอง)
+                            flow -= dischargeAmps * 0.05; 
+                        }
+                        // Self discharge เล็กน้อยถ้าไม่มีโหลด
+                        else if (!isCharging && currentSoc > 0 && totalLoadWatts === 0) {
+                             flow -= 0.01;
                         }
 
                         let newSoc = currentSoc + flow;
