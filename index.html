@@ -28,6 +28,14 @@
         .select-none { user-select: none; -webkit-user-select: none; }
         /* Prevent pull-to-refresh and other touch actions on canvas */
         .touch-none { touch-action: none; }
+        
+        /* Grid Background pattern like Proteus */
+        .grid-bg {
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
     </style>
     
     <!-- Google Fonts for Thai support -->
@@ -39,12 +47,13 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { Sun, Trash2, Zap, Plus, Settings, Power, Lightbulb, Play, RotateCcw, AlertTriangle, CheckCircle, GripHorizontal, Activity, Battery, Fan, Cylinder, BookOpen, X, BatteryCharging } from 'lucide-react';
+        import { Sun, Trash2, Zap, Plus, Settings, Power, Lightbulb, Play, RotateCcw, AlertTriangle, CheckCircle, GripHorizontal, Activity, Battery, Fan, Cylinder, BookOpen, X, BatteryCharging, BoxSelect } from 'lucide-react';
 
         // --- ค่าคงที่และประเภทอุปกรณ์ (Constants & Types) ---
         const COMPONENT_TYPES = {
             PANEL: 'panel',
             BATTERY: 'battery',
+            CHARGER: 'charger',
             CAPACITOR: 'capacitor',
             INVERTER: 'inverter',
             BREAKER: 'breaker',
@@ -57,6 +66,17 @@
         const SPECS = {
             [COMPONENT_TYPES.PANEL]: { label: 'แผงโซล่าเซลล์ (PV)', type: 'source', maxV: 40, maxA: 5, width: 100, height: 140, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 70, color: 'black'}] },
             [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่ 12V', type: 'source', maxV: 12.8, maxA: 50, width: 100, height: 120, terminals: [{id: 'pos', x: 30, color: 'red'}, {id: 'neg', x: 70, color: 'black'}] },
+            [COMPONENT_TYPES.CHARGER]: { 
+                label: 'โซล่าร์ชาร์จเจอร์', 
+                type: 'converter', 
+                width: 140, 
+                height: 100, 
+                terminals: [
+                    {id: 'pv_pos', label: 'PV+', x: 20, color: 'red'}, {id: 'pv_neg', label: 'PV-', x: 40, color: 'black'},
+                    {id: 'bat_pos', label: 'BAT+', x: 60, color: 'red'}, {id: 'bat_neg', label: 'BAT-', x: 80, color: 'black'},
+                    {id: 'load_pos', label: 'LOAD+', x: 100, color: 'red'}, {id: 'load_neg', label: 'LOAD-', x: 120, color: 'black'}
+                ] 
+            },
             [COMPONENT_TYPES.CAPACITOR]: { label: 'ตัวเก็บประจุ (Capacitor)', type: 'passive', width: 60, height: 80, terminals: [{id: 'pos', x: 20, color: 'red'}, {id: 'neg', x: 40, color: 'black'}] },
             [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์ (Inverter)', type: 'converter', width: 140, height: 100, terminals: [{id: 'dc_pos', label: 'DC+', x: 30, color: 'red'}, {id: 'dc_neg', label: 'DC-', x: 50, color: 'black'}, {id: 'ac_l', label: 'L', x: 90, color: 'brown'}, {id: 'ac_n', label: 'N', x: 110, color: 'blue'}] },
             [COMPONENT_TYPES.BREAKER]: { label: 'เบรกเกอร์ (Breaker)', type: 'switch', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 30, color: 'black'}, {id: 'in_2', label: 'เข้า', x: 50, color: 'black'}, {id: 'out_1', label: 'ออก', x: 70, color: 'black'}, {id: 'out_2', label: 'ออก', x: 90, color: 'black'}] },
@@ -84,9 +104,17 @@
             onTouchStart: (e) => handler(e),
         });
 
+        // Helper: Generate Orthogonal Wire Path (Proteus Style)
+        const getWirePath = (x1, y1, x2, y2, customOffset = null) => {
+            const defaultMidY = Math.max(y1, y2) + 40;
+            const midY = customOffset ? (defaultMidY + customOffset) : defaultMidY;
+            return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+        };
+
         // --- ส่วนประกอบแสดงผล (Visual Components) ---
 
-        const Terminal = ({ x, y, color, label, onInteract }) => (
+        // Modified Terminal: Accepts isHovered to scale up
+        const Terminal = ({ x, y, color, label, onInteract, isHovered }) => (
         <g 
             transform={`translate(${x}, ${y})`} 
             {...bindStartEvents((e) => { 
@@ -95,12 +123,22 @@
             })}
             className="cursor-crosshair group touch-none"
         >
-            <circle r="20" fill="transparent" /> 
-            <g className="transition-transform group-hover:scale-125 origin-center">
-                <rect x="-6" y="-6" width="12" height="12" fill="#374151" rx="2" />
+            {/* Invisible Hit Area - Larger for easier touch */}
+            <circle r="25" fill="transparent" /> 
+            
+            {/* Visible Terminal - Scales when hovered */}
+            <g className={`transition-all duration-200 origin-center ${isHovered ? 'scale-150' : ''}`}>
+                <rect x="-6" y="-6" width="12" height="12" fill="#374151" rx="2" 
+                      stroke={isHovered ? "#fbbf24" : "none"} strokeWidth={isHovered ? 2 : 0} />
                 <circle r="4" fill={color} stroke="white" strokeWidth="1.5" />
             </g>
-            {label && <text x="0" y="18" textAnchor="middle" fill="#4b5563" fontSize="8" fontWeight="bold" className="pointer-events-none">{label}</text>}
+            
+            {/* Label */}
+            {label && (
+                <text x="0" y={isHovered ? "24" : "18"} textAnchor="middle" fill={isHovered ? "#000" : "#4b5563"} fontSize="8" fontWeight="bold" className="pointer-events-none transition-all">
+                    {label}
+                </text>
+            )}
         </g>
         );
 
@@ -123,27 +161,40 @@
             <rect x="5" y="10" width={width-10} height={height-10} rx="4" fill="#1f2937" stroke="#374151" strokeWidth="2" />
             <rect x="20" y="0" width="15" height="10" fill="#dc2626" />
             <rect x={width-35} y="0" width="15" height="10" fill="#111827" />
-            
-            {/* Battery Level Display */}
             <rect x="15" y="30" width={width-30} height={50} rx="2" fill="#374151" stroke="#4b5563" />
-            
-            {/* Battery Bars */}
             <rect x="18" y="33" width={(width-36) * (soc / 100)} height={44} rx="1" fill={soc > 20 ? "#22c55e" : "#ef4444"} className="transition-all duration-300" />
-            
-            {/* Text Overlay */}
             <text x={width/2} y="60" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{textShadow: '0 1px 2px black'}}>
                 {Math.round(soc)}%
             </text>
-            
-            {/* Status Icons */}
             {isCharging && (
                 <g transform={`translate(${width/2 - 8}, 85)`}>
                     <circle r="8" fill="#eab308" />
                     <path d="M-2 -4 L2 0 L-1 0 L1 4 L-3 0 L0 0 Z" fill="black" transform="scale(1.5)" />
                 </g>
             )}
-            
             <text x={width/2} y="100" textAnchor="middle" fill="#9ca3af" fontSize="9">12V 100Ah</text>
+        </g>
+        );
+
+        const ChargerVisual = ({ width, height, isCharging, hasLoad }) => (
+        <g>
+            <rect x="0" y="0" width={width} height={height} rx="6" fill="#0ea5e9" stroke="#0284c7" strokeWidth="2" />
+            <rect x="20" y="15" width={width-40} height="30" rx="2" fill="#ecfccb" stroke="#84cc16" strokeWidth="1" />
+            <text x={width/2} y="35" textAnchor="middle" fill="#3f6212" fontSize="10" fontWeight="bold" fontFamily="monospace">
+                {isCharging ? "CHARGING..." : "STANDBY"}
+            </text>
+            <g transform="translate(20, 55)">
+                <circle cx="0" cy="0" r="4" fill={isCharging ? "#22c55e" : "#1e293b"} />
+                <text x="8" y="3" fontSize="8" fill="white">Charge</text>
+            </g>
+            <g transform="translate(80, 55)">
+                <circle cx="0" cy="0" r="4" fill={hasLoad ? "#ef4444" : "#1e293b"} />
+                <text x="8" y="3" fontSize="8" fill="white">Load</text>
+            </g>
+            <text x="30" y={height-5} textAnchor="middle" fontSize="8" fill="white">PV</text>
+            <text x="70" y={height-5} textAnchor="middle" fontSize="8" fill="white">BAT</text>
+            <text x="110" y={height-5} textAnchor="middle" fontSize="8" fill="white">LOAD</text>
+            <text x={width/2} y="8" textAnchor="middle" fill="rgba(255,255,255,0.7)" fontSize="8" fontWeight="bold">SOLAR CHARGE</text>
         </g>
         );
 
@@ -164,18 +215,13 @@
             <rect x="0" y="0" width={width} height="25" rx="4" fill="#f3f4f6" stroke="none" />
             <line x1="0" y1="25" x2={width} y2="25" stroke="#e5e7eb" strokeWidth="1" />
             <text x={width/2} y="18" textAnchor="middle" fill="#111827" fontSize="10" fontWeight="bold">{label}</text>
-            
-            {/* Status LED */}
             <circle cx={width - 15} cy="12.5" r="4" fill={error ? "#ef4444" : (isPowered ? "#22c55e" : "#d1d5db")} stroke="#9ca3af" strokeWidth="1" />
-            
-            {/* Error Message Overlay */}
             {error && (
                 <g>
                     <rect x="10" y={height/2 - 12} width={width-20} height={24} rx="4" fill="rgba(220, 38, 38, 0.9)" />
                     <text x={width/2} y={height/2 + 4} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{error}</text>
                 </g>
             )}
-
             {subLabel && !error && <text x={width/2} y={height/2 + 5} textAnchor="middle" fill="#6b7280" fontSize="10">{subLabel}</text>}
         </g>
         );
@@ -222,7 +268,6 @@
         );
 
         // --- Tool Components ---
-
         const DraggableProbe = ({ type, x, y, onInteract }) => (
             <div 
                 {...bindStartEvents(onInteract)}
@@ -235,40 +280,57 @@
             </div>
         );
 
-        const ClampMeterTool = ({ x, y, value, onInteract }) => (
+        const ClampMeterTool = ({ x, y, value, onInteract, isActive }) => (
             <div 
                 {...bindStartEvents(onInteract)}
                 className="absolute z-50 cursor-move group touch-none"
                 style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
             >
-                <div className="relative w-24 h-40">
-                    <div className="absolute top-0 left-0 w-24 h-24 border-[12px] border-orange-500 rounded-full border-b-transparent rotate-45 shadow-xl"></div>
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-24 bg-orange-500 rounded-lg shadow-lg flex flex-col items-center justify-center border-2 border-orange-600">
-                        <div className="bg-gray-200 w-12 h-8 rounded border border-gray-400 font-mono text-center flex items-center justify-center text-gray-800 font-bold">
-                            {value !== null ? value.toFixed(2) : '---'}
+                <div className="relative w-24 h-40 transition-transform duration-100 ease-out">
+                    <div className={`absolute top-0 left-0 w-24 h-24 border-[12px] rounded-full border-b-transparent rotate-45 shadow-xl transition-colors duration-200 ${isActive ? 'border-green-500 scale-105' : 'border-orange-500'}`}>
+                        {isActive && <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-pulse"></div>}
+                    </div>
+                    <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-24 rounded-lg shadow-lg flex flex-col items-center justify-center border-2 transition-colors duration-200 ${isActive ? 'bg-orange-600 border-orange-700' : 'bg-orange-500 border-orange-600'}`}>
+                        <div className={`bg-gray-200 w-12 h-8 rounded border border-gray-400 font-mono text-center flex items-center justify-center text-gray-800 font-bold ${isActive ? 'bg-green-100 text-green-800 border-green-500' : ''}`}>
+                            {value !== null && isActive ? value.toFixed(2) : '---'}
                         </div>
                         <div className="text-[8px] font-bold text-white mt-1">แอมป์มิเตอร์</div>
-                        <div className="mt-2 w-8 h-8 rounded-full border-4 border-orange-700 bg-orange-400"></div>
+                        <div className="mt-2 w-8 h-8 rounded-full border-4 border-orange-800 bg-orange-300"></div>
                     </div>
                 </div>
             </div>
         );
 
         const VoltmeterDisplay = ({ value }) => (
-            <div className="absolute bottom-4 right-4 bg-yellow-400 p-3 rounded-xl border-4 border-gray-800 shadow-2xl w-40 z-40">
-                <div className="bg-[#9ca3af] h-12 mb-2 rounded border-2 border-gray-600 shadow-inner flex items-center justify-end px-3 font-mono text-2xl text-gray-900 font-bold relative overflow-hidden">
+            <div className="absolute bottom-4 right-4 bg-yellow-400 p-3 rounded-xl border-4 border-gray-800 shadow-2xl w-48 z-40 relative group">
+                <div className="absolute -top-10 -left-2 animate-bounce opacity-90" style={{ animationDuration: '3s' }}>
+                    <span className="text-slate-600 font-bold text-2xl select-none" style={{textShadow: '1px 1px 0 #fff'}}>Z</span>
+                    <span className="text-slate-500 font-bold text-xl ml-0.5 select-none" style={{textShadow: '1px 1px 0 #fff'}}>z</span>
+                    <span className="text-slate-400 font-bold text-lg ml-0.5 select-none" style={{textShadow: '1px 1px 0 #fff'}}>z</span>
+                </div>
+                <div className="bg-[#9ca3af] h-12 mb-3 rounded border-2 border-gray-600 shadow-inner flex items-center justify-end px-3 font-mono text-2xl text-gray-900 font-bold relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10 pointer-events-none"></div>
                     {value !== null ? value.toFixed(1) : '---'} <span className="text-sm ml-1">V</span>
                 </div>
-                <div className="flex justify-between items-center px-1">
-                    <div className="text-[10px] font-bold text-yellow-900">โวลต์มิเตอร์</div>
+                <div className="flex justify-center gap-4 mb-2">
+                    <div className="w-10 h-10 bg-white rounded-full border-2 border-gray-800 relative overflow-hidden shadow-sm">
+                        <div className="absolute top-0 w-full h-[65%] bg-yellow-400 border-b-4 border-gray-800 z-10"></div>
+                        <div className="absolute bottom-1 right-2 w-3 h-3 bg-black rounded-full opacity-80"></div>
+                    </div>
+                    <div className="w-10 h-10 bg-white rounded-full border-2 border-gray-800 relative overflow-hidden shadow-sm">
+                        <div className="absolute top-0 w-full h-[65%] bg-yellow-400 border-b-4 border-gray-800 z-10"></div>
+                        <div className="absolute bottom-1 right-2 w-3 h-3 bg-black rounded-full opacity-80"></div>
+                    </div>
+                </div>
+                <div className="absolute bottom-[2.8rem] left-1/2 -translate-x-1/2 w-4 h-1 bg-gray-800 rounded-full opacity-30"></div>
+                <div className="flex justify-between items-center px-1 border-t border-yellow-500 pt-2 mt-1">
+                    <div className="text-[10px] font-bold text-yellow-900">โวลต์มิเตอร์ (ง่วง)</div>
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                 </div>
             </div>
         );
 
         // --- Guide Component ---
-
         const WiringGuideModal = ({ onClose }) => {
             return (
                 <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
@@ -279,9 +341,7 @@
                             </h2>
                             <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
-                        
                         <div className="p-6 space-y-8">
-                            {/* Scene 1 */}
                             <section>
                                 <h3 className="font-bold text-lg text-blue-800 mb-3 flex items-center gap-2">
                                     <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">1</span> 
@@ -294,52 +354,11 @@
                                         <li><strong>แผงโซล่า (-)</strong> <span className="text-gray-400">--&gt;</span> <strong>เบรกเกอร์ (เข้า)</strong> <span className="text-gray-400">--&gt;</span> <strong>อินเวอร์เตอร์ (DC-)</strong></li>
                                         <li><strong>อินเวอร์เตอร์ (L/N)</strong> <span className="text-gray-400">--&gt;</span> <strong>หลอดไฟ (L/N)</strong></li>
                                     </ul>
-                                    <div className="mt-2 p-2 bg-yellow-50 text-yellow-800 text-xs rounded border border-yellow-200">
-                                        * ข้อควรระวัง: อย่าต่อไฟ 220V เข้าที่ช่อง DC ของอินเวอร์เตอร์
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Scene 2 */}
-                            <section>
-                                <h3 className="font-bold text-lg text-blue-800 mb-3 flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">2</span> 
-                                    ระบบสำรองไฟ (Battery System)
-                                </h3>
-                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
-                                    <p className="font-semibold text-gray-700">การต่อพ่วงแบตเตอรี่:</p>
-                                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-2">
-                                        <li>ต่อ <strong>แผงโซล่า</strong> เข้ากับ <strong>แบตเตอรี่</strong> โดยตรง (ขนาน: บวกต่อบวก, ลบต่อลบ)</li>
-                                        <li>หรือต่อผ่าน <strong>Charger</strong> (ในแอพนี้ให้ต่อตรงหรือผ่านเบรกเกอร์ได้เลย)</li>
-                                        <li>จากนั้นต่อไฟจาก <strong>แบตเตอรี่</strong> ไปเข้า <strong>อินเวอร์เตอร์</strong></li>
-                                    </ul>
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        * แบตเตอรี่ช่วยให้ระบบทำงานได้แม้ไม่มีแสงแดด (ปรับความเข้มแสงเป็น 0% เพื่อทดสอบ)
-                                    </p>
-                                </div>
-                            </section>
-
-                            {/* Scene 3 */}
-                            <section>
-                                <h3 className="font-bold text-lg text-blue-800 mb-3 flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm">3</span> 
-                                    การกรองกระแส (Capacitor)
-                                </h3>
-                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-2">
-                                    <p className="font-semibold text-gray-700">วิธีติดตั้ง:</p>
-                                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-2">
-                                        <li>ต่อคร่อมขั้วแบตเตอรี่หรือขั้วอินพุตของอินเวอร์เตอร์</li>
-                                        <li><strong>Capacitor (+)</strong> <span className="text-gray-400">--&gt;</span> <strong>สายไฟบวกหลัก</strong></li>
-                                        <li><strong>Capacitor (-)</strong> <span className="text-gray-400">--&gt;</span> <strong>สายไฟลบหลัก</strong></li>
-                                    </ul>
                                 </div>
                             </section>
                         </div>
-
                         <div className="p-4 border-t bg-gray-50 rounded-b-xl text-right">
-                            <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors">
-                                เข้าใจแล้ว
-                            </button>
+                            <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors">เข้าใจแล้ว</button>
                         </div>
                     </div>
                 </div>
@@ -355,56 +374,45 @@
         const [dragInfo, setDragInfo] = useState(null); 
         const [tempWire, setTempWire] = useState(null);
         
-        // Battery State (SoC: 0-100)
-        const [batteryState, setBatteryState] = useState({}); // { [id]: { soc: 50, isCharging: false } }
-
-        // Selection & Properties
-        const [selectedObj, setSelectedObj] = useState(null); // { type: 'comp'|'wire', id: string }
+        // Hover State for Terminals (Snap Effect)
+        const [hoveredTerm, setHoveredTerm] = useState(null); // { compId, termId }
         
-        // Guide State
+        const [batteryState, setBatteryState] = useState({}); 
+        const [selectedObj, setSelectedObj] = useState(null); 
         const [showGuide, setShowGuide] = useState(false);
-
-        // Tools State
         const [activeTool, setActiveTool] = useState(null); 
-        const [probePos, setProbePos] = useState({ 
-            red: { x: 300, y: 300, term: null }, 
-            black: { x: 350, y: 300, term: null } 
-        });
+        const [probePos, setProbePos] = useState({ red: { x: 300, y: 300, term: null }, black: { x: 350, y: 300, term: null } });
         const [clampPos, setClampPos] = useState({ x: 400, y: 400, wireId: null });
-        
-        // Simulation State
         const [isRunning, setIsRunning] = useState(false);
         const [simResults, setSimResults] = useState({ voltages: new Map(), wireCurrents: new Map(), states: {} });
         const [notification, setNotification] = useState(null);
 
-        // Keyboard Listener for Delete
+        const canvasRef = useRef(null);
+
+        const getLocalPos = (e) => {
+            const { x, y } = getEventPos(e);
+            if (canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                return { x: x - rect.left, y: y - rect.top };
+            }
+            return { x, y };
+        };
+
+        // Keyboard Listener
         useEffect(() => {
             const handleKeyDown = (e) => {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
-                    if (selectedObj) {
-                        if (selectedObj.type === 'wire') {
-                            setWires(prev => prev.filter(w => w.id !== selectedObj.id));
-                            setSelectedObj(null);
-                        } else if (selectedObj.type === 'comp') {
-                            setComponents(prev => prev.filter(c => c.id !== selectedObj.id));
-                            // Remove wires attached to this comp
-                            setWires(prev => prev.filter(w => w.from !== selectedObj.id && w.to !== selectedObj.id));
-                            setSelectedObj(null);
-                        }
-                        if (isRunning) { setIsRunning(false); setNotification(null); }
-                    }
+                    if (selectedObj) deleteSelected();
                 }
             };
             window.addEventListener('keydown', handleKeyDown);
             return () => window.removeEventListener('keydown', handleKeyDown);
         }, [selectedObj, isRunning]);
 
-        // --- Logic Engine (ระบบจำลองไฟฟ้า) ---
+        // Logic Engine ... (Same as before)
         useEffect(() => {
             const nets = [];
             const getNet = (id) => nets.find(s => s.has(id));
-
-            // 1. สร้าง Net (จุดเชื่อมต่อ)
             components.forEach(c => {
             const spec = SPECS[c.type];
             if(spec.terminals) {
@@ -415,7 +423,6 @@
                 });
             }
             });
-
             wires.forEach(w => {
                 const net1 = getNet(`${w.from}_${w.fromTerm}`);
                 const net2 = getNet(`${w.to}_${w.toTerm}`);
@@ -425,14 +432,10 @@
                 }
             });
 
-            // 2. คำนวณแรงดัน (Voltage)
             const netVoltages = new Map();
             const compStates = {};
             const wireCurrents = new Map();
 
-            // 2.1 แหล่งจ่าย (Sources)
-            
-            // แผงโซล่า (PV)
             components.filter(c => c.type === COMPONENT_TYPES.PANEL).forEach(pv => {
                 const v = 40 * (sunIntensity/100);
                 const posNet = getNet(`${pv.id}_pos`);
@@ -444,12 +447,10 @@
                 compStates[pv.id] = { outputV: v, isPowered: v > 5 };
             });
 
-            // แบตเตอรี่ (Battery) - Updated for SoC
             components.filter(c => c.type === COMPONENT_TYPES.BATTERY).forEach(bat => {
                 const soc = batteryState[bat.id]?.soc ?? 50;
                 const isDead = soc <= 0;
                 const v = isDead ? 0 : 12.8; 
-                
                 const posNet = getNet(`${bat.id}_pos`);
                 const negNet = getNet(`${bat.id}_neg`);
                 if(!netVoltages.has(negNet)) netVoltages.set(negNet, 0);
@@ -459,21 +460,39 @@
                 compStates[bat.id] = { outputV: v, isPowered: !isDead };
             });
 
-            // Capacitor just acts as a pass-through node logic-wise here, but we could add charge logic visual
-            // For now, it just inherits voltage from nets.
-
-            // 2.2 อุปกรณ์ส่งผ่านและโหลด
             for(let i=0; i<8; i++) {
                 components.forEach(c => {
-                    // อินเวอร์เตอร์ (แปลงไฟ DC -> AC)
+                    if(c.type === COMPONENT_TYPES.CHARGER) {
+                        const pvPos = getNet(`${c.id}_pv_pos`);
+                        const pvNeg = getNet(`${c.id}_pv_neg`);
+                        const batPos = getNet(`${c.id}_bat_pos`);
+                        const batNeg = getNet(`${c.id}_bat_neg`);
+                        const loadPos = getNet(`${c.id}_load_pos`);
+                        const loadNeg = getNet(`${c.id}_load_neg`);
+                        const vPV = (netVoltages.get(pvPos) || 0) - (netVoltages.get(pvNeg) || 0);
+                        let isCharging = false;
+                        let hasLoad = false;
+                        if (vPV > 12) {
+                            if (!netVoltages.has(batNeg)) netVoltages.set(batNeg, 0);
+                            const refV = netVoltages.get(batNeg) || 0;
+                            netVoltages.set(batPos, Math.max(netVoltages.get(batPos)||0, refV + 14.4));
+                            isCharging = true;
+                        }
+                        const currentBatV = (netVoltages.get(batPos) || 0) - (netVoltages.get(batNeg) || 0);
+                        if (currentBatV > 11.5) {
+                            if (!netVoltages.has(loadNeg)) netVoltages.set(loadNeg, 0);
+                            const refLoadV = netVoltages.get(loadNeg) || 0;
+                            netVoltages.set(loadPos, Math.max(netVoltages.get(loadPos)||0, refLoadV + currentBatV));
+                            hasLoad = true;
+                        }
+                        compStates[c.id] = { isPowered: true, isCharging, hasLoad };
+                    }
                     if(c.type === COMPONENT_TYPES.INVERTER) {
                         const dcPos = getNet(`${c.id}_dc_pos`);
                         const dcNeg = getNet(`${c.id}_dc_neg`);
                         const acL = getNet(`${c.id}_ac_l`);
                         const acN = getNet(`${c.id}_ac_n`);
                         const vIn = (netVoltages.get(dcPos) || 0) - (netVoltages.get(dcNeg) || 0);
-                        
-                        // Modified Inverter Logic: Protection cut-offs
                         if(vIn > 45) {
                             compStates[c.id] = { isPowered: false, error: 'Over V' };
                             netVoltages.set(acL, 0);
@@ -486,7 +505,6 @@
                             netVoltages.set(acL, 220); 
                         }
                     }
-                    // เบรกเกอร์ (สะพานไฟ)
                     if(c.type === COMPONENT_TYPES.BREAKER) {
                         const in1 = getNet(`${c.id}_in_1`); const out1 = getNet(`${c.id}_out_1`);
                         const in2 = getNet(`${c.id}_in_2`); const out2 = getNet(`${c.id}_out_2`);
@@ -496,164 +514,145 @@
                         else if(netVoltages.has(out2)) netVoltages.set(in2, netVoltages.get(out2));
                         compStates[c.id] = { isPowered: true };
                     }
-                    // โหลดไฟฟ้า
                     if(['socket', 'bulb', 'motor'].includes(c.type)) {
                         const l = getNet(`${c.id}_l`);
                         const n = getNet(`${c.id}_n`);
                         const vDiff = (netVoltages.get(l) || 0) - (netVoltages.get(n) || 0);
-                        
                         let hasPower = false;
-                        if (c.type === 'motor') {
-                            hasPower = Math.abs(vDiff) > 10; 
-                        } else {
-                            hasPower = Math.abs(vDiff) > 200;
-                        }
-                        
+                        if (c.type === 'motor') hasPower = Math.abs(vDiff) > 10; 
+                        else hasPower = Math.abs(vDiff) > 200;
                         compStates[c.id] = { isPowered: hasPower, physicsPowered: hasPower };
                     }
                 });
             }
 
-            // 3. คำนวณกระแส (Current Calculation based on Watts)
             if (isRunning) {
                 components.filter(c => ['socket', 'bulb', 'motor'].includes(c.type) && compStates[c.id]?.physicsPowered).forEach(load => {
-                    // Calculate Current I = P / V
                     const watts = load.watts || SPECS[load.type].defaultWatts;
                     const voltage = SPECS[load.type].voltageRef || 220;
                     const current = watts / voltage;
-                    
-                    // Apply current to wires connected to L
                     const lNet = getNet(`${load.id}_l`);
                     wires.forEach(w => {
                         const wNet = getNet(`${w.from}_${w.fromTerm}`);
-                        if (wNet === lNet) {
-                            wireCurrents.set(w.id, (wireCurrents.get(w.id) || 0) + current);
-                        }
+                        if (wNet === lNet) wireCurrents.set(w.id, (wireCurrents.get(w.id) || 0) + current);
                     });
-                    // Apply current to wires connected to N
                     const nNet = getNet(`${load.id}_n`);
                     wires.forEach(w => {
                         const wNet = getNet(`${w.from}_${w.fromTerm}`);
-                        if (wNet === nNet) {
-                            wireCurrents.set(w.id, (wireCurrents.get(w.id) || 0) + current);
-                        }
+                        if (wNet === nNet) wireCurrents.set(w.id, (wireCurrents.get(w.id) || 0) + current);
                     });
                 });
             }
-
             setSimResults({ voltages: netVoltages, wireCurrents, states: compStates, nets });
+        }, [components, wires, sunIntensity, isRunning, batteryState]);
 
-        }, [components, wires, sunIntensity, isRunning, batteryState]); // Add batteryState dependency
-
-        // --- Battery Charging/Discharging Loop ---
+        // Battery Loop ... (Same)
         useEffect(() => {
             if (!isRunning) return;
-
             const interval = setInterval(() => {
                 setBatteryState(prev => {
                     const next = { ...prev };
-                    
-                    // คำนวณโหลดรวมทั้งระบบ (Total Active Load)
                     let totalLoadWatts = 0;
                     components.forEach(c => {
                          const state = simResults.states[c.id];
-                         // นับโหลดเฉพาะตัวที่ทำงานอยู่ (Powered)
                          if (['socket', 'bulb', 'motor'].includes(c.type) && state?.physicsPowered) {
                              totalLoadWatts += (c.watts || SPECS[c.type].defaultWatts);
                          }
                     });
-
                     components.filter(c => c.type === COMPONENT_TYPES.BATTERY).forEach(bat => {
                         const currentSoc = prev[bat.id]?.soc ?? 50;
                         let flow = 0;
                         let isCharging = false;
-                        
-                        // Find connected net voltage
                         const posNet = simResults.nets?.find(n => n.has(`${bat.id}_pos`));
                         const netV = simResults.voltages?.get(posNet) || 0;
-                        
-                        // Logic:
-                        // 1. ถ้าแรงดันในระบบสูงกว่า 13.2V แสดงว่ามีไฟจากแผงโซล่าเข้ามา -> ชาร์จ
                         if (netV > 13.2) {
                             isCharging = true;
-                            flow += 0.2 + (sunIntensity / 50); // ชาร์จเร็วขึ้นตามความเข้มแสง
+                            flow += 0.2 + (sunIntensity / 50); 
                         } 
-                        
-                        // 2. ถ้าไม่ชาร์จ และมีโหลดทำงาน -> ดึงไฟจากแบตเตอรี่
                         if (!isCharging && currentSoc > 0 && totalLoadWatts > 0) {
-                            // คำนวณกระแสที่ต้องจ่าย (I = P/V) สมมติแรงดัน 12V
                             const dischargeAmps = totalLoadWatts / 12;
-                            
-                            // ลด % แบตเตอรี่ (คูณค่าคงที่เพื่อให้เห็นผลเร็วขึ้นในการจำลอง)
                             flow -= dischargeAmps * 0.05; 
                         }
-                        // Self discharge เล็กน้อยถ้าไม่มีโหลด
                         else if (!isCharging && currentSoc > 0 && totalLoadWatts === 0) {
                              flow -= 0.01;
                         }
-
                         let newSoc = currentSoc + flow;
                         if (newSoc > 100) newSoc = 100;
                         if (newSoc < 0) newSoc = 0;
-                        
                         next[bat.id] = { soc: newSoc, isCharging };
                     });
-                    
                     return next;
                 });
-            }, 500); // Update every 500ms
-
+            }, 500);
             return () => clearInterval(interval);
         }, [isRunning, components, wires, simResults, sunIntensity]);
 
         // --- Interaction Handlers ---
 
         const handleGlobalMove = (e) => {
-            // Prevent scrolling on touch devices during drag
             if(e.touches) e.preventDefault(); 
+            const { x: localX, y: localY } = getLocalPos(e);
             
-            const { x: clientX, y: clientY } = getEventPos(e);
-            
+            // --- 1. Proximity Check for Terminals (Snap Effect) ---
+            let closestTerm = null;
+            let minDist = 30; // Radius for snapping
+
+            components.forEach(c => {
+                const spec = SPECS[c.type];
+                if (spec.terminals) {
+                    spec.terminals.forEach(t => {
+                        const tx = c.x + t.x;
+                        const ty = c.y + spec.height + 5;
+                        const dist = Math.hypot(localX - tx, localY - ty);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closestTerm = { compId: c.id, termId: t.id };
+                        }
+                    });
+                }
+            });
+            setHoveredTerm(closestTerm);
+            // -----------------------------------------------------
+
             if(dragInfo?.type === 'comp') {
-                setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: clientX - dragInfo.offsetX, y: clientY - dragInfo.offsetY} : c));
+                setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: localX - dragInfo.offsetX, y: localY - dragInfo.offsetY} : c));
             }
-            
             if(dragInfo?.type === 'wireHandle') {
-                setWires(prev => prev.map(w => w.id === dragInfo.id ? { ...w, customOffset: (clientY - dragInfo.baseY) } : w));
+                setWires(prev => prev.map(w => w.id === dragInfo.id ? { ...w, customOffset: (localY - dragInfo.baseY) } : w));
             }
-
             if(dragInfo?.type === 'probe') {
-                setProbePos(prev => ({ ...prev, [dragInfo.color]: { x: clientX, y: clientY, term: null } }));
+                setProbePos(prev => ({ ...prev, [dragInfo.color]: { x: localX, y: localY, term: null } }));
             }
-
             if(dragInfo?.type === 'clamp') {
-                setClampPos({ x: clientX, y: clientY, wireId: null });
+                const hit = findHitWire(localX, localY, 60);
+                if (hit) setClampPos({ x: localX, y: hit.y + 32, wireId: hit.id });
+                else setClampPos({ x: localX, y: localY, wireId: null });
             }
-
             if(tempWire) {
-                setTempWire(prev => ({...prev, x2: clientX, y2: clientY}));
+                // If hovering over a terminal, snap the temp wire to it!
+                if (closestTerm) {
+                    const c = components.find(c => c.id === closestTerm.compId);
+                    const spec = SPECS[c.type];
+                    const t = spec.terminals.find(t => t.id === closestTerm.termId);
+                    setTempWire(prev => ({...prev, x2: c.x + t.x, y2: c.y + spec.height + 5}));
+                } else {
+                    setTempWire(prev => ({...prev, x2: localX, y2: localY}));
+                }
             }
         };
 
         const handleGlobalMouseUp = (e) => {
-            const { x: clientX, y: clientY } = getEventPos(e);
+            const { x: localX, y: localY } = getLocalPos(e);
 
             if (dragInfo?.type === 'probe') {
-                const hit = findHitTerminal(clientX, clientY);
-                if(hit) {
-                    setProbePos(prev => ({ ...prev, [dragInfo.color]: { x: hit.x, y: hit.y, term: hit } }));
-                }
-            }
-
-            if (dragInfo?.type === 'clamp') {
-                const hit = findHitWire(clientX, clientY);
-                if (hit) {
-                    setClampPos({ x: clientX, y: hit.y, wireId: hit.id });
-                }
+                // Use the same hit logic (which is now consistent via shared visual or logic)
+                const hit = findHitTerminal(localX, localY);
+                if(hit) setProbePos(prev => ({ ...prev, [dragInfo.color]: { x: hit.x, y: hit.y, term: hit } }));
             }
 
             if(tempWire) {
-                const hit = findHitTerminal(clientX, clientY);
+                // Check if we dropped ON a terminal (using the robust hit check)
+                const hit = findHitTerminal(localX, localY);
                 if(hit && (hit.compId !== tempWire.from || hit.termId !== tempWire.fromTerm)) {
                     setWires(prev => [...prev, {
                         id: Date.now(),
@@ -664,7 +663,6 @@
                 }
                 setTempWire(null);
             }
-
             setDragInfo(null);
         };
 
@@ -674,8 +672,6 @@
         };
 
         const handleCompClick = (e, comp) => {
-            // Allow drag but also select
-            // Selection logic is handled via props update mostly, but visual selection can be here
             setSelectedObj({ type: 'comp', id: comp.id });
         };
 
@@ -686,8 +682,6 @@
                 } else {
                     setComponents(prev => prev.filter(c => c.id !== selectedObj.id));
                     setWires(prev => prev.filter(w => w.from !== selectedObj.id && w.to !== selectedObj.id));
-                    
-                    // Clean up battery state
                     if (selectedObj.type === 'comp') {
                         setBatteryState(prev => {
                             const next = {...prev};
@@ -702,6 +696,8 @@
         };
 
         const findHitTerminal = (mx, my) => {
+            // First check if we have a hovered terminal from the move event (Snap)
+            // But we need to verify distance again to be safe or just iterate with larger radius
             let hit = null;
             components.forEach(c => {
                 const spec = SPECS[c.type];
@@ -709,7 +705,8 @@
                 spec.terminals.forEach(t => {
                     const tx = c.x + t.x;
                     const ty = c.y + spec.height + 5;
-                    if(Math.hypot(mx - tx, my - ty) < 20) {
+                    // Increased hit radius to 30 to match snap effect
+                    if(Math.hypot(mx - tx, my - ty) < 30) {
                         hit = { compId: c.id, termId: t.id, x: tx, y: ty };
                     }
                 });
@@ -717,26 +714,30 @@
             return hit;
         };
 
-        const findHitWire = (mx, my) => {
+        const findHitWire = (mx, my, tolerance = 20) => {
+            let closest = null;
+            let closestDist = Infinity;
             for(let w of wires) {
                 const c1 = components.find(c => c.id === w.from);
                 const c2 = components.find(c => c.id === w.to);
                 if(!c1 || !c2) continue;
-                
                 const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
                 const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
                 const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
                 const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
                 const defaultMidY = Math.max(p1.y, p2.y) + 40;
-                const midY = w.customOffset ? (Math.max(p1.y, p2.y) + 40 + w.customOffset) : defaultMidY;
-
+                const midY = w.customOffset ? (defaultMidY + w.customOffset) : defaultMidY;
                 const minX = Math.min(p1.x, p2.x);
                 const maxX = Math.max(p1.x, p2.x);
-                if (mx >= minX && mx <= maxX && Math.abs(my - midY) < 20) {
-                    return { id: w.id, y: midY };
+                if (mx >= minX - tolerance && mx <= maxX + tolerance) {
+                    const dist = Math.abs(my - midY);
+                    if (dist < tolerance && dist < closestDist) {
+                        closestDist = dist;
+                        closest = { id: w.id, y: midY };
+                    }
                 }
             }
-            return null;
+            return closest;
         }
 
         const getVoltageReading = () => {
@@ -755,8 +756,6 @@
             return simResults.wireCurrents.get(clampPos.wireId) || 0;
         };
 
-        // --- Helper Functions ---
-
         const addComponent = (type) => {
             const spec = SPECS[type];
             const newId = Date.now().toString();
@@ -765,20 +764,17 @@
                 type, 
                 x: 100 + components.length * 20, 
                 y: 100 + components.length * 20,
-                watts: spec.defaultWatts // Initial watts
+                watts: spec.defaultWatts 
             }]);
-            
-            // Init battery state
             if (type === COMPONENT_TYPES.BATTERY) {
                 setBatteryState(prev => ({...prev, [newId]: { soc: 50, isCharging: false }}));
             }
-            
             if(isRunning) { setIsRunning(false); setNotification(null); }
         };
 
         const updateComponentWatts = (id, newWatts) => {
             setComponents(prev => prev.map(c => c.id === id ? { ...c, watts: parseInt(newWatts) } : c));
-            if(isRunning) { setIsRunning(false); setNotification(null); } // Reset sim to recalculate
+            if(isRunning) { setIsRunning(false); setNotification(null); }
         };
 
         const runCheck = () => {
@@ -795,32 +791,26 @@
         const getSelectedComponent = () => components.find(c => c.id === selectedObj?.id);
 
         return (
-            <div className="flex h-screen bg-slate-100 font-sans select-none overflow-hidden touch-none" 
+            <div className="flex h-screen bg-slate-100 font-sans select-none overflow-hidden touch-none grid-bg" 
                 onMouseMove={handleGlobalMove} 
                 onTouchMove={handleGlobalMove}
                 onMouseUp={handleGlobalMouseUp} 
                 onTouchEnd={handleGlobalMouseUp}
                 onClick={() => setSelectedObj(null)}>
             
-            {/* Show Guide Modal if active */}
             {showGuide && <WiringGuideModal onClose={() => setShowGuide(false)} />}
 
-            {/* แถบเครื่องมือซ้าย (Sidebar) */}
             <div className="w-64 bg-white border-r shadow-xl flex flex-col z-30" onClick={e => e.stopPropagation()}>
                 <div className="p-4 bg-gray-900 text-white shadow-md flex justify-between items-center">
                     <h1 className="text-xl font-bold flex items-center gap-2 text-yellow-400"><Zap className="fill-current"/> Solar Sim Thai</h1>
                 </div>
                 <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                    
-                    {/* ปุ่มเปิดคู่มือ */}
                     <button 
                         onClick={() => setShowGuide(true)}
                         className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 p-2 rounded-lg border border-blue-200 transition-colors font-bold mb-2"
                     >
                         <BookOpen size={18}/> คู่มือการต่อวงจร
                     </button>
-
-                    {/* ควบคุมการจำลอง */}
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                         {!isRunning ? (
                             <button onClick={runCheck} className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg shadow-lg transition-all font-bold">
@@ -832,8 +822,6 @@
                             </button>
                         )}
                     </div>
-
-                    {/* แสงอาทิตย์ */}
                     <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
                         <label className="text-xs font-bold text-blue-800 uppercase flex justify-between">
                             <span>ความเข้มแสงอาทิตย์</span>
@@ -847,8 +835,6 @@
                             className="w-full mt-2 h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
                         />
                     </div>
-
-                    {/* เครื่องมือวัด */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">เครื่องมือวัด (Measuring)</label>
                         <div className="grid grid-cols-2 gap-2">
@@ -868,8 +854,6 @@
                             </button>
                         </div>
                     </div>
-
-                    {/* รายการอุปกรณ์ */}
                     <div className="space-y-2 pt-4 border-t">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">เพิ่มอุปกรณ์ (Add Components)</label>
                         {Object.keys(SPECS).map(type => (
@@ -878,6 +862,7 @@
                                     {type === 'panel' ? <Sun size={18}/> : 
                                     type === 'bulb' ? <Lightbulb size={18}/> : 
                                     type === 'battery' ? <Battery size={18}/> :
+                                    type === 'charger' ? <BatteryCharging size={18}/> :
                                     type === 'capacitor' ? <Cylinder size={18}/> :
                                     type === 'motor' ? <Fan size={18}/> : <Power size={18}/>}
                                 </div>
@@ -892,10 +877,12 @@
                 </div>
             </div>
 
-            {/* พื้นที่ทำงาน (Canvas) */}
-            <div className="flex-1 relative overflow-hidden bg-slate-100" style={{backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px'}}>
+            <div 
+                ref={canvasRef}
+                className="flex-1 relative overflow-hidden bg-slate-100 grid-bg" 
+                style={{backgroundSize: '24px 24px'}}
+            >
                 
-                {/* Properties Panel (Right Side) */}
                 {selectedObj && selectedObj.type === 'comp' && ['bulb', 'motor', 'socket'].includes(getSelectedComponent()?.type) && (
                     <div className="absolute top-4 right-4 z-50 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 w-64 animate-in slide-in-from-right-10 fade-in duration-300" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-3">
@@ -923,14 +910,10 @@
                                     className="w-full mt-2 h-1 bg-gray-200 rounded appearance-none cursor-pointer"
                                 />
                             </div>
-                            <div className="text-[10px] text-gray-400 bg-gray-50 p-2 rounded">
-                                การเปลี่ยนค่า Watt จะส่งผลต่อกระแสไฟฟ้า (Amp) ที่วัดได้
-                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* Wire Selection Controls */}
                 {selectedObj && selectedObj.type === 'wire' && (
                     <div className="absolute top-4 right-4 z-50 bg-white p-3 rounded-xl shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-3">
@@ -945,7 +928,6 @@
                     </div>
                 )}
 
-                {/* การแจ้งเตือน (Notifications) */}
                 {notification && (
                     <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-bounce ${notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
                         {notification.type === 'success' ? <CheckCircle size={24}/> : <AlertTriangle size={24}/>}
@@ -954,7 +936,6 @@
                 )}
 
                 <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
-                    {/* สายไฟ (Wires) */}
                     {wires.map(w => {
                         const c1 = components.find(c => c.id === w.from);
                         const c2 = components.find(c => c.id === w.to);
@@ -966,45 +947,44 @@
                         const p1 = { x: c1.x + t1.x, y: c1.y + spec1.height + 5 };
                         const p2 = { x: c2.x + t2.x, y: c2.y + spec2.height + 5 };
                         
+                        const path = getWirePath(p1.x, p1.y, p2.x, p2.y, w.customOffset);
                         const defaultMidY = Math.max(p1.y, p2.y) + 40;
                         const midY = w.customOffset ? (defaultMidY + w.customOffset) : defaultMidY;
-
-                        const path = `M ${p1.x} ${p1.y} L ${p1.x} ${midY} L ${p2.x} ${midY} L ${p2.x} ${p2.y}`;
                         const midX = (p1.x + p2.x) / 2;
-
                         const isSelected = selectedObj?.type === 'wire' && selectedObj.id === w.id;
+                        const wireColor = t1.color === 'red' || t1.color === 'brown' ? '#ef4444' : '#1f2937';
 
                         return (
                             <g key={w.id} className="pointer-events-auto group" onClick={(e) => handleWireClick(e, w.id)}>
-                                {/* Hit Area (Invisible) */}
                                 <path d={path} stroke="transparent" strokeWidth="20" fill="none" />
-                                
-                                {/* Selected Outline */}
-                                {isSelected && <path d={path} stroke="#fbbf24" strokeWidth="8" fill="none" strokeLinejoin="round" className="animate-pulse opacity-70"/>}
-
-                                {/* Actual Wire */}
-                                <path d={path} stroke={t1.color === 'red' || t1.color === 'brown' ? '#ef4444' : '#1f2937'} strokeWidth="4" fill="none" strokeLinejoin="round" className="shadow-sm"/>
-                                
-                                {/* ปุ่มจับสำหรับปรับสายไฟ */}
+                                {isSelected && <path d={path} stroke="#fbbf24" strokeWidth="6" fill="none" strokeLinejoin="miter" className="animate-pulse opacity-70"/>}
+                                <path d={path} stroke={wireColor} strokeWidth="2.5" fill="none" strokeLinejoin="round" strokeLinecap="round" className="shadow-sm"/>
+                                <circle cx={p1.x} cy={p1.y} r="3" fill={wireColor} />
+                                <circle cx={p2.x} cy={p2.y} r="3" fill={wireColor} />
                                 <g 
                                     transform={`translate(${midX}, ${midY})`} 
                                     className={`opacity-0 group-hover:opacity-100 cursor-ns-resize transition-opacity ${isSelected ? 'opacity-100' : ''}`}
                                     {...bindStartEvents((e) => { e.stopPropagation(); setDragInfo({ type: 'wireHandle', id: w.id, baseY: defaultMidY }); })}
                                 >
-                                    <circle r="8" fill="white" stroke="#3b82f6" strokeWidth="2" />
-                                    <GripHorizontal size={10} className="text-blue-500 -translate-x-[5px] -translate-y-[5px]" />
+                                    <circle r="6" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                                    <GripHorizontal size={8} className="text-blue-500 -translate-x-[4px] -translate-y-[4px]" />
                                 </g>
                             </g>
                         );
                     })}
                     
-                    {/* สายไฟชั่วคราวขณะลาก */}
                     {tempWire && (
-                        <path d={`M ${tempWire.x1} ${tempWire.y1} C ${tempWire.x1} ${tempWire.y1+50} ${tempWire.x2} ${tempWire.y2+50} ${tempWire.x2} ${tempWire.y2}`} stroke="#fbbf24" strokeWidth="3" strokeDasharray="6" fill="none" className="animate-pulse"/>
+                        <g>
+                            <path 
+                                d={getWirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2)} 
+                                stroke="#fbbf24" strokeWidth="2.5" strokeDasharray="4" fill="none" className="animate-pulse"
+                            />
+                            <circle cx={tempWire.x1} cy={tempWire.y1} r="3" fill="#fbbf24" />
+                            <circle cx={tempWire.x2} cy={tempWire.y2} r="3" fill="#fbbf24" />
+                        </g>
                     )}
                 </svg>
 
-                {/* อุปกรณ์ (Components) */}
                 {components.map(comp => {
                     const spec = SPECS[comp.type];
                     const state = simResults.states[comp.id] || {};
@@ -1015,10 +995,8 @@
                         <div key={comp.id} className="absolute group z-10" style={{left: comp.x, top: comp.y}}>
                             <div 
                                 {...bindStartEvents((e) => { 
-                                    const { x, y } = getEventPos(e);
-                                    // Handle only main touches or mouse button 0
+                                    const { x, y } = getLocalPos(e); 
                                     if(e.type === 'mousedown' && e.button !== 0) return;
-                                    
                                     setDragInfo({ type: 'comp', id: comp.id, offsetX: x - comp.x, offsetY: y - comp.y }); 
                                     handleCompClick(e, comp); 
                                 })}
@@ -1031,53 +1009,38 @@
                                 )}
                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-xl">
                                     {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} />}
-                                    
-                                    {comp.type === COMPONENT_TYPES.BATTERY && (
-                                        <BatteryVisual 
-                                            width={spec.width} 
-                                            height={spec.height} 
-                                            soc={batteryState[comp.id]?.soc ?? 50} 
-                                            isCharging={batteryState[comp.id]?.isCharging}
-                                        />
-                                    )}
-                                    
+                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={batteryState[comp.id]?.soc ?? 50} isCharging={batteryState[comp.id]?.isCharging}/>}
+                                    {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad}/>}
                                     {comp.type === COMPONENT_TYPES.CAPACITOR && <CapacitorVisual width={spec.width} height={spec.height} />}
-                                    {(comp.type === COMPONENT_TYPES.INVERTER || comp.type === COMPONENT_TYPES.BREAKER) && (
-                                        <BoxVisual 
-                                            width={spec.width} 
-                                            height={spec.height} 
-                                            label={comp.label} 
-                                            subLabel={comp.type === 'inverter' ? "220V Out" : ""} 
-                                            isPowered={showPower}
-                                            error={state.error} 
-                                        />
-                                    )}
+                                    {(comp.type === COMPONENT_TYPES.INVERTER || comp.type === COMPONENT_TYPES.BREAKER) && <BoxVisual width={spec.width} height={spec.height} label={comp.label} subLabel={comp.type === 'inverter' ? "220V Out" : ""} isPowered={showPower} error={state.error}/>}
                                     {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
                                     {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
                                     {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={showPower} watts={comp.watts || spec.defaultWatts} />}
                                     {comp.type === COMPONENT_TYPES.WIREWAY && <rect x="0" y="0" width={spec.width} height={spec.height} fill="#e5e7eb" stroke="#d1d5db" rx="2" opacity="0.8"/>}
 
-                                    {spec.terminals.map(t => (
-                                        <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} 
-                                            onInteract={(e) => { 
-                                                // Prevent dragging component when interacting with terminal
-                                                setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x + t.x, y1: comp.y + spec.height + 5, x2: comp.x + t.x, y2: comp.y + spec.height + 5 }); 
-                                            }}
-                                        />
-                                    ))}
+                                    {spec.terminals.map(t => {
+                                        // Check if this specific terminal is currently hovered/snapped
+                                        const isHovered = hoveredTerm && hoveredTerm.compId === comp.id && hoveredTerm.termId === t.id;
+                                        return (
+                                            <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} 
+                                                isHovered={isHovered}
+                                                onInteract={(e) => { 
+                                                    setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x + t.x, y1: comp.y + spec.height + 5, x2: comp.x + t.x, y2: comp.y + spec.height + 5 }); 
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </svg>
                             </div>
                         </div>
                     );
                 })}
 
-                {/* เครื่องมือวัด (Overlay) */}
                 {activeTool === 'volt' && (
                     <>
                         <VoltmeterDisplay value={getVoltageReading()} />
                         <DraggableProbe type="red" x={probePos.red.x} y={probePos.red.y} onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'red' }); }} />
                         <DraggableProbe type="black" x={probePos.black.x} y={probePos.black.y} onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'probe', color: 'black' }); }} />
-                        {/* สายโพรบ */}
                         <svg className="absolute inset-0 pointer-events-none z-30">
                             <path d={`M ${window.innerWidth - 100} ${window.innerHeight - 50} C ${window.innerWidth - 100} ${window.innerHeight - 200}, ${probePos.red.x} ${probePos.red.y + 200}, ${probePos.red.x} ${probePos.red.y}`} stroke="#ef4444" strokeWidth="2" fill="none" opacity="0.5"/>
                             <path d={`M ${window.innerWidth - 120} ${window.innerHeight - 50} C ${window.innerWidth - 120} ${window.innerHeight - 200}, ${probePos.black.x} ${probePos.black.y + 200}, ${probePos.black.x} ${probePos.black.y}`} stroke="#1f2937" strokeWidth="2" fill="none" opacity="0.5"/>
@@ -1086,7 +1049,13 @@
                 )}
 
                 {activeTool === 'amp' && (
-                    <ClampMeterTool x={clampPos.x} y={clampPos.y} value={getCurrentReading()} onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'clamp' }); }} />
+                    <ClampMeterTool 
+                        x={clampPos.x} 
+                        y={clampPos.y} 
+                        value={getCurrentReading()} 
+                        isActive={!!clampPos.wireId}
+                        onInteract={(e) => { e.stopPropagation(); setDragInfo({ type: 'clamp' }); }} 
+                    />
                 )}
 
             </div>
