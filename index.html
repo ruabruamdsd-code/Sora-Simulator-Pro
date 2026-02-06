@@ -134,7 +134,7 @@
                 <rect x="20" y="0" width="20" height="12" fill="#dc2626" rx="2" />
                 <rect x={width-40} y="0" width="20" height="12" fill="#111827" rx="2" />
                 <rect x="15" y="45" width={width-30} height={55} rx="3" fill="#374151" stroke="#4b5563" />
-                <rect x="18" y="48" width={(width-36)*(soc/100)} height={49} rx="2" fill="#22c55e" opacity="0.9" />
+                <rect x="18" y="48" width={(width-36)*(soc/100)} height={49} rx="2" fill={soc > 20 ? "#22c55e" : "#ef4444"} opacity="0.9" />
                 <text x={width/2} y="78" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">{Math.round(soc)}%</text>
             </g>
         );
@@ -163,7 +163,7 @@
         const MotorVisual = ({ width, height, isPowered }) => (
             <g>
                 <rect x="10" y="20" width={width-20} height={height-40} rx="8" fill="#4b5563" stroke="#374151" strokeWidth="2" />
-                <circle cx={width/2} cy={height/2} r="25" fill="#374151" stroke="#94a3b8" strokeWidth="2" />
+                <circle cx={width/2} cy={height/2} r="30" fill="#374151" stroke="#94a3b8" strokeWidth="2" />
                 <g transform={`translate(${width/2}, ${height/2})`}>
                     <path d="M-15 0 L15 0 M0 -15 L0 15" stroke="white" strokeWidth="3" className={isPowered ? "animate-spin-fast origin-center" : ""} />
                 </g>
@@ -174,7 +174,7 @@
         const BulbVisual = ({ width, height, isPowered }) => (
             <g>
                 <path d={`M ${width/2-10} ${height-10} L ${width/2+10} ${height-10} L ${width/2+15} ${height-30} L ${width/2-15} ${height-30} Z`} fill="#94a3b8" />
-                <circle cx={width/2} cy={height/2-5} r="25" fill={isPowered ? "#fef08a" : "#f1f5f9"} stroke={isPowered ? "#facc15" : "#cbd5e1"} strokeWidth={2} />
+                <circle cx={width/2} cy={height/2-5} r="25" fill={isPowered ? "#fef08a" : "#f1f5f9"} stroke={isPowered ? "#facc15" : "#cbd5e1"} strokeWidth="2" />
                 {isPowered && <circle cx={width/2} cy={height/2-5} r="32" fill="none" stroke="#fef08a" strokeWidth="2" opacity="0.5" className="animate-pulse" />}
             </g>
         );
@@ -231,7 +231,7 @@
             const [hoveredTerm, setHoveredTerm] = useState(null);
             const [selectedObj, setSelectedObj] = useState(null); 
             const [isRunning, setIsRunning] = useState(false);
-            const [simResults, setSimResults] = useState({ voltages: new Map(), states: {} });
+            const [simResults, setSimResults] = useState({ voltages: new Map(), states: {}, isSystemLoaded: false });
             const canvasRef = useRef(null);
 
             const getLocalPos = (e) => {
@@ -240,6 +240,7 @@
                 return { x: e.clientX - rect.left, y: e.clientY - rect.top };
             };
 
+            // --- Simulation Logic ---
             useEffect(() => {
                 const nets = [];
                 const getNet = (id) => nets.find(s => s.has(id));
@@ -256,38 +257,81 @@
                 });
                 const netVoltages = new Map();
                 const compStates = {};
+                let isSystemLoaded = false;
+
+                // Step 1: Battery check (Assume all batteries are connected to same potential for simplicity in this visual sim)
+                // Actually, we should check SOC. If SOC <= 0, battery voltage is 0.
+                const batteries = components.filter(c => c.type === COMPONENT_TYPES.BATTERY);
+                const hasBatteryPower = batteries.some(b => (b.soc || 0) > 0);
+
+                // Sources
                 components.filter(c => c.type === COMPONENT_TYPES.PANEL).forEach(pv => {
                     const v = 25 * (sunIntensity/100);
                     const pos = getNet(`${pv.id}_pos`); const neg = getNet(`${pv.id}_neg`);
                     if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
                     netVoltages.set(pos, (netVoltages.get(neg)||0) + v);
                 });
+                
+                // If battery has power, it provides voltage to its net
+                batteries.forEach(bat => {
+                   if((bat.soc || 0) > 0) {
+                       const pos = getNet(`${bat.id}_pos`); const neg = getNet(`${bat.id}_neg`);
+                       if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
+                       netVoltages.set(pos, 12.8); // Nominal battery voltage
+                   }
+                });
+
                 components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).forEach(src => {
                     const l = getNet(`${src.id}_l`); const n = getNet(`${src.id}_n`);
                     netVoltages.set(n, 0); netVoltages.set(l, 220);
                 });
+                
+                // Propagate Voltages
                 for(let i=0; i<8; i++) {
                     components.forEach(c => {
+                        // Switches/Breakers
                         if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE].includes(c.type)) {
                             const pairs = c.type === COMPONENT_TYPES.AC_BREAKER ? [['in_l', 'out_l'], ['in_n', 'out_n']] : (c.type === COMPONENT_TYPES.FUSE ? [['in', 'out']] : [['in_1', 'out_1'], ['in_2', 'out_2']]);
                             pairs.forEach(([iId, oId]) => {
                                 const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
                                 if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
+                                else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
                             });
                         }
+                        // Charger (Simple pass through for simulation + status check)
+                        if(c.type === COMPONENT_TYPES.CHARGER) {
+                            const pvp = getNet(`${c.id}_pv_pos`);
+                            const batp = getNet(`${c.id}_bat_pos`);
+                            const loadp = getNet(`${c.id}_load_pos`);
+                            
+                            const vpv = netVoltages.get(pvp) || 0;
+                            const vbat = netVoltages.get(batp) || 0;
+                            
+                            // PV to Battery logic
+                            const isCharging = vpv > 13;
+                            
+                            // Battery to Load logic
+                            if(vbat > 10) {
+                                netVoltages.set(loadp, 12); // Supply load output
+                            }
+                            
+                            compStates[c.id] = { isCharging, hasLoad: false }; // hasLoad calculated later
+                        }
+                        // Inverter
                         if(c.type === COMPONENT_TYPES.INVERTER) {
                             const acl = getNet(`${c.id}_ac_l`); const dcp = getNet(`${c.id}_dc_pos`);
                             if((netVoltages.get(dcp)||0) > 11) { netVoltages.set(acl, 220); compStates[c.id] = { isPowered: true }; }
                         }
+                        // Loads
                         if(['bulb','socket','motor'].includes(c.type)) {
                             const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
                             const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
-                            compStates[c.id] = { isPowered: v > 20, volts: v };
-                        }
-                        if(c.type === COMPONENT_TYPES.CHARGER) {
-                            const pvp = getNet(`${c.id}_pv_pos`);
-                            const vpv = netVoltages.get(pvp) || 0;
-                            compStates[c.id] = { isCharging: vpv > 13, hasLoad: false };
+                            if (v > 10) {
+                                compStates[c.id] = { isPowered: true, volts: v };
+                                isSystemLoaded = true;
+                            } else {
+                                compStates[c.id] = { isPowered: false, volts: v };
+                            }
                         }
                         if(c.type === COMPONENT_TYPES.ENERGY_METER) {
                             const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
@@ -296,8 +340,39 @@
                         }
                     });
                 }
-                setSimResults({ voltages: netVoltages, states: compStates });
+                setSimResults({ voltages: netVoltages, states: compStates, isSystemLoaded });
             }, [components, wires, sunIntensity]);
+
+            // --- Battery SOC Interval ---
+            useEffect(() => {
+                let interval;
+                if (isRunning) {
+                    interval = setInterval(() => {
+                        setComponents(prev => prev.map(c => {
+                            if (c.type === COMPONENT_TYPES.BATTERY) {
+                                let newSoc = c.soc || 75;
+                                const isCharging = sunIntensity > 30; // Simplified charging threshold
+                                const isDischarging = simResults.isSystemLoaded && !isCharging;
+                                
+                                if (isCharging) {
+                                    newSoc += 0.5; // Charge rate
+                                } else if (isDischarging) {
+                                    newSoc -= 0.8; // Discharge rate
+                                } else if (simResults.isSystemLoaded && isCharging) {
+                                    // If both charging and loaded, verify if PV is enough (simplified: small drain or small charge depending on sun)
+                                    if(sunIntensity > 50) newSoc += 0.2;
+                                    else newSoc -= 0.1;
+                                }
+
+                                return { ...c, soc: Math.min(100, Math.max(0, newSoc)) };
+                            }
+                            return c;
+                        }));
+                    }, 200);
+                }
+                return () => clearInterval(interval);
+            }, [isRunning, sunIntensity, simResults.isSystemLoaded]);
+
 
             const handlePointerMove = (e) => {
                 const pos = getLocalPos(e);
@@ -316,7 +391,7 @@
             };
 
             const addComponent = (type) => {
-                setComponents(prev => [...prev, { id: Date.now().toString(), type, x: 200, y: 200, watts: 100, efficiency: 100, capacity: 100 }]);
+                setComponents(prev => [...prev, { id: Date.now().toString(), type, x: 200, y: 200, watts: 100, efficiency: 100, capacity: 100, soc: 50 }]);
                 setSelectedObj(null);
             };
 
@@ -324,7 +399,9 @@
                 if(obj.type === 'comp') {
                     setComponents(prev => prev.filter(c => c.id !== obj.id));
                     setWires(prev => prev.filter(w => w.from !== obj.id && w.to !== obj.id));
-                } else setWires(prev => prev.filter(w => w.id !== obj.id));
+                } else if (obj.type === 'wire') {
+                    setWires(prev => prev.filter(w => w.id !== obj.id));
+                }
                 setSelectedObj(null);
             };
 
@@ -357,17 +434,23 @@
                     {/* Canvas Area */}
                     <div ref={canvasRef} className="flex-1 relative grid-bg overflow-hidden touch-none h-full">
                         {/* Selection HUD */}
-                        {selectedObj && selectedObj.type === 'comp' && (
+                        {selectedObj && (
                             <div className="absolute top-4 right-4 z-50 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border-2 border-blue-400 w-64 animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
                                 <div className="flex justify-between items-center mb-3">
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="settings" size={16}/> {SPECS[components.find(c => c.id === selectedObj.id)?.type]?.label}</h3>
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                        <Icon name="settings" size={16}/> 
+                                        {selectedObj.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type]?.label : 'แก้ไขสายไฟ'}
+                                    </h3>
                                     <button onClick={() => deleteObj(selectedObj)} className="bg-red-50 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white"><Icon name="trash-2" size={18} /></button>
                                 </div>
-                                {components.find(c => c.id === selectedObj.id) && SPECS[components.find(c => c.id === selectedObj.id).type]?.editable && (
+                                {selectedObj.type === 'comp' && components.find(c => c.id === selectedObj.id) && SPECS[components.find(c => c.id === selectedObj.id).type]?.editable && (
                                     <div className="space-y-2">
                                         <input type="range" min="10" max="2000" step="5" value={components.find(c => c.id === selectedObj.id)[SPECS[components.find(c => c.id === selectedObj.id).type].editable]} onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? { ...c, [SPECS[c.type].editable]: parseInt(e.target.value) } : c))} className="w-full h-8 cursor-pointer accent-blue-600"/>
                                         <div className="text-center font-black text-blue-600 text-2xl">{components.find(c => c.id === selectedObj.id)[SPECS[components.find(c => c.id === selectedObj.id).type].editable]} {SPECS[components.find(c => c.id === selectedObj.id).type].unit}</div>
                                     </div>
+                                )}
+                                {selectedObj.type === 'wire' && (
+                                    <div className="text-center text-xs text-slate-500">ลากจุดสีน้ำเงินเพื่อจัดสายไฟ</div>
                                 )}
                             </div>
                         )}
@@ -386,6 +469,10 @@
                                     <g key={w.id} className="pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}>
                                         <path d={path} stroke="transparent" strokeWidth="30" fill="none" />
                                         <path d={path} stroke={isSel ? "#fbbf24" : (['red','brown'].includes(t1.color) ? '#ef4444' : (t1.color === 'blue' ? '#2563eb' : (t1.color === 'green' ? '#22c55e' : '#1e293b')))} strokeWidth={isSel ? 6 : 3} fill="none" strokeLinecap="round" className="wire-shadow" />
+                                        <g transform={`translate(${(p1.x+p2.x)/2 + (w.offsetX || 0)}, ${Math.max(p1.y, p2.y) + (w.offsetY || 40)})`}>
+                                            <circle r="15" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-lg" />
+                                            <Icon name="move" size={16} className="text-blue-500 absolute" style={{left: -8, top: -8}} onPointerDown={(e) => { e.stopPropagation(); setDragInfo({ type: 'wireHandle', id: w.id, baseX: (p1.x + p2.x) / 2, baseY: Math.max(p1.y, p2.y) }); }} />
+                                        </g>
                                     </g>
                                 );
                             })}
@@ -402,7 +489,7 @@
                                         {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
                                         <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
                                             {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} efficiency={comp.efficiency} />}
-                                            {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc || 75} />}
+                                            {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} />}
                                             {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
                                             {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
                                             {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
