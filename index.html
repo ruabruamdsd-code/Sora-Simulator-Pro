@@ -77,7 +77,7 @@
         const COMPONENT_TYPES = {
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', INVERTER: 'inverter',
             BREAKER_DC: 'breaker_dc', FUSE: 'fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
-            AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', AC_SOURCE: 'ac_source', 
+            AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', DC_WATT_METER: 'dc_watt_meter', AC_SOURCE: 'ac_source', 
             GROUND_BAR: 'ground_bar', TERMINAL_BLOCK: 'terminal_block', SOCKET: 'socket', BULB: 'bulb', MOTOR: 'motor'
         };
 
@@ -87,7 +87,8 @@
             [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 180, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 25, color: 'red'}, {id: 'pv_neg', label: 'PV-', x: 50, color: 'black'}, {id: 'bat_pos', label: 'BAT+', x: 90, color: 'red'}, {id: 'bat_neg', label: 'BAT-', x: 115, color: 'black'}, {id: 'load_pos', label: 'LOAD+', x: 145, color: 'red'}, {id: 'load_neg', label: 'LOAD-', x: 170, color: 'black'}] },
             [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์', icon: 'activity', width: 150, height: 110, terminals: [{id: 'dc_pos', label: 'DC+', x: 30, color: 'red'}, {id: 'dc_neg', label: 'DC-', x: 55, color: 'black'}, {id: 'ac_l', label: 'L', x: 105, color: 'brown'}, {id: 'ac_n', label: 'N', x: 130, color: 'blue'}] },
             [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 30, color: 'red'}, {id: 'in_2', label: 'เข้า', x: 50, color: 'black'}, {id: 'out_1', label: 'ออก', x: 70, color: 'red'}, {id: 'out_2', label: 'ออก', x: 90, color: 'black'}] },
-            [COMPONENT_TYPES.ENERGY_METER]: { label: 'มิเตอร์', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 25, color: 'brown'}, {id: 'in_n', label: 'N-เข้า', x: 50, color: 'blue'}, {id: 'out_l', label: 'L-ออก', x: 90, color: 'brown'}, {id: 'out_n', label: 'N-ออก', x: 115, color: 'blue'}] },
+            [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 25, color: 'brown'}, {id: 'in_n', label: 'N-เข้า', x: 50, color: 'blue'}, {id: 'out_l', label: 'L-ออก', x: 90, color: 'brown'}, {id: 'out_n', label: 'N-ออก', x: 115, color: 'blue'}] },
+            [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 130, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 25, color: 'red'}, {id: 'in_neg', label: 'IN-', x: 45, color: 'black'}, {id: 'out_pos', label: 'OUT+', x: 85, color: 'red'}, {id: 'out_neg', label: 'OUT-', x: 105, color: 'black'}] },
             [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 30, color: 'brown'}, {id: 'in_n', label: 'N-เข้า', x: 50, color: 'blue'}, {id: 'out_l', label: 'L-ออก', x: 70, color: 'brown'}, {id: 'out_n', label: 'N-ออก', x: 90, color: 'blue'}] },
             [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 90, height: 90, terminals: [{id: 'pos', label: '+', x: 25, color: 'red'}, {id: 'neg', label: '-', x: 45, color: 'black'}, {id: 'g', label: 'G', x: 65, color: 'green'}] },
             [COMPONENT_TYPES.AC_SURGE]: { label: 'AC SPD', icon: 'shield-check', width: 90, height: 90, terminals: [{id: 'l', label: 'L', x: 25, color: 'brown'}, {id: 'n', label: 'N', x: 45, color: 'blue'}, {id: 'g', label: 'G', x: 65, color: 'green'}] },
@@ -209,7 +210,21 @@
                 <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#0f172a" strokeWidth="2" />
                 <rect x="10" y="10" width={width-20} height={50} rx="2" fill="#064e3b" />
                 <text x={width/2} y={45} textAnchor="middle" fill={isPowered ? "#4ade80" : "#065f46"} fontSize="24" fontFamily="monospace" fontWeight="bold">{isPowered ? volts.toFixed(1) : "00.0"}</text>
-                <text x={width/2} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">VOLT METER</text>
+                <text x={width/2} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">AC METER</text>
+            </g>
+        );
+
+        const DcWattMeterVisual = ({ width, height, volts, watts }) => (
+            <g>
+                <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#334155" strokeWidth="2" />
+                <rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" />
+                {/* Screen content */}
+                <text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text>
+                <text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/Math.max(volts,1)).toFixed(2) : "0.00"} A</text>
+                <text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text>
+                <text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text>
+                
+                <text x={width/2} y={height-10} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">DC POWER METER</text>
             </g>
         );
 
@@ -334,17 +349,24 @@
                     netVoltages.set(n, 0); netVoltages.set(l, 220);
                 });
                 
-                // Propagate Voltages
+                // Propagate Voltages & Calculate States
                 for(let i=0; i<8; i++) {
                     components.forEach(c => {
-                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE].includes(c.type)) {
-                            const pairs = c.type === COMPONENT_TYPES.AC_BREAKER ? [['in_l', 'out_l'], ['in_n', 'out_n']] : (c.type === COMPONENT_TYPES.FUSE ? [['in', 'out']] : [['in_1', 'out_1'], ['in_2', 'out_2']]);
+                        // Voltage Propagation for Breakers, Fuses, and Meters
+                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER].includes(c.type)) {
+                            let pairs = [];
+                            if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
+                            else if (c.type === COMPONENT_TYPES.FUSE) pairs = [['in', 'out']];
+                            else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
+                            else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; // DC Breaker
+
                             pairs.forEach(([iId, oId]) => {
                                 const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
                                 if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
                                 else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
                             });
                         }
+
                         if(c.type === COMPONENT_TYPES.CHARGER) {
                             const pvp = getNet(`${c.id}_pv_pos`);
                             const batp = getNet(`${c.id}_bat_pos`);
@@ -388,6 +410,13 @@
                             const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
                             const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
                             compStates[c.id] = { isPowered: v > 20, volts: v };
+                        }
+                        if(c.type === COMPONENT_TYPES.DC_WATT_METER) {
+                            const p = getNet(`${c.id}_in_pos`); const n = getNet(`${c.id}_in_neg`);
+                            const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
+                            // Show watts if voltage > 10 (active system) and battery drain is happening
+                            const w = (v > 10) ? currentBatteryDrain : 0; 
+                            compStates[c.id] = { volts: v, watts: w };
                         }
                     });
                 }
@@ -594,6 +623,7 @@
                                             {comp.type === COMPONENT_TYPES.GROUND_BAR && <GroundBarVisual width={spec.width} height={spec.height} />}
                                             {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK && <TerminalBlockVisual width={spec.width} height={spec.height} />}
                                             {comp.type === COMPONENT_TYPES.ENERGY_METER && <MeterVisual width={spec.width} height={spec.height} isPowered={state.isPowered} volts={state.volts || 0} />}
+                                            {comp.type === COMPONENT_TYPES.DC_WATT_METER && <DcWattMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
                                             {['inverter','breaker_dc','ac_breaker','ac_source'].includes(comp.type) && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
                                             
                                             {spec.terminals?.map(t => (
