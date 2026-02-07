@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-180x180.png">
     <meta name="mobile-web-app-capable" content="yes">
+
     <!-- React & Babel CDNs -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -49,6 +50,22 @@
         .no-select {
             -webkit-user-select: none;
             user-select: none;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8; 
+            border-radius: 6px;
+            border: 3px solid #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
         }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -326,10 +343,16 @@
 
             const canvasRef = useRef(null);
 
+            // Updated getLocalPos to account for scrolling
             const getLocalPos = (e) => {
                 if (!canvasRef.current) return { x: 0, y: 0 };
                 const rect = canvasRef.current.getBoundingClientRect();
-                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                const scrollLeft = canvasRef.current.scrollLeft;
+                const scrollTop = canvasRef.current.scrollTop;
+                return { 
+                    x: e.clientX - rect.left + scrollLeft, 
+                    y: e.clientY - rect.top + scrollTop 
+                };
             };
 
             // Noise and Animation Tick
@@ -448,7 +471,6 @@
                             }
                             if(c.type === COMPONENT_TYPES.CONSUMER_SUB) {
                                 const l = getNet(`${c.id}_in`); 
-                                // Since Sub breaker only has 1 line, check if that line has voltage (roughly > 50V absolute or relative to known neutral if we tracked it, but for simplicity just check potential)
                                 const v = netVoltages.get(l) || 0;
                                 if(v > 50) compStates[c.id] = { isPowered: true };
                             }
@@ -620,7 +642,21 @@
             };
 
             const addComponent = (type) => {
-                setComponents(prev => [...prev, { id: Date.now().toString(), type, x: 200, y: 200, watts: 100, efficiency: 100, capacity: 100, soc: 50, maxVoltage: 40 }]);
+                // Spawn in center of viewport or specific location? Let's keep it simple (200, 200 relative to scroll)
+                const scrollLeft = canvasRef.current ? canvasRef.current.scrollLeft : 0;
+                const scrollTop = canvasRef.current ? canvasRef.current.scrollTop : 0;
+                
+                setComponents(prev => [...prev, { 
+                    id: Date.now().toString(), 
+                    type, 
+                    x: 200 + scrollLeft, 
+                    y: 200 + scrollTop, 
+                    watts: 100, 
+                    efficiency: 100, 
+                    capacity: 100, 
+                    soc: 50, 
+                    maxVoltage: 40 
+                }]);
                 setSelectedObj(null);
             };
 
@@ -673,11 +709,12 @@
                         </div>
                     </div>
 
-                    {/* Canvas Area */}
-                    <div ref={canvasRef} className="flex-1 relative grid-bg overflow-hidden touch-none h-full">
-                        {/* Selection HUD */}
+                    {/* Main Content Wrapper */}
+                    <div className="flex-1 relative overflow-hidden h-full">
+
+                        {/* Selection HUD (Fixed Position Relative to Viewer) */}
                         {selectedObj && (
-                            <div className="absolute top-4 right-4 z-50 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border-2 border-blue-400 w-64 animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
+                            <div className="absolute top-4 right-4 z-50 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border-2 border-blue-400 w-64 animate-in slide-in-from-right duration-200 pointer-events-auto" onClick={e => e.stopPropagation()}>
                                 <div className="flex justify-between items-center mb-3">
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         <Icon name="settings" size={16}/> 
@@ -707,96 +744,87 @@
                             </div>
                         )}
 
-                        <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
-                            {wires.map(w => {
-                                const c1 = components.find(c => c.id === w.from); const c2 = components.find(c => c.id === w.to);
-                                if(!c1 || !c2) return null;
-                                const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
-                                const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
-                                const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
-                                const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
-                                const isSel = selectedObj?.type === 'wire' && selectedObj.id === w.id;
-                                const path = getWirePath(p1.x, p1.y, p2.x, p2.y, w.offsetX || 0, w.offsetY || 40);
-                                const wireColor = t1.color; // Use the terminal color directly
-                                
-                                return (
-                                    <g key={w.id} className="pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}>
-                                        {/* Hit Area (Invisible but wide for easier clicking) */}
-                                        <path d={path} stroke="transparent" strokeWidth="30" fill="none" />
+                        {/* Scrollable Canvas Area */}
+                        <div ref={canvasRef} className="w-full h-full overflow-auto relative bg-slate-100">
+                            <div className="relative grid-bg" style={{width: 3000, height: 2000}}>
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+                                    {wires.map(w => {
+                                        const c1 = components.find(c => c.id === w.from); const c2 = components.find(c => c.id === w.to);
+                                        if(!c1 || !c2) return null;
+                                        const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
+                                        const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
+                                        const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
+                                        const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
+                                        const isSel = selectedObj?.type === 'wire' && selectedObj.id === w.id;
+                                        const path = getWirePath(p1.x, p1.y, p2.x, p2.y, w.offsetX || 0, w.offsetY || 40);
+                                        const wireColor = t1.color; 
                                         
-                                        {/* Wire Halo (Background color stroke to simulate gap when crossing) */}
-                                        <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 12 : 8} fill="none" strokeLinecap="round" />
-
-                                        {/* Main Wire Stroke */}
-                                        <path d={path} stroke={isSel ? "#fbbf24" : wireColor} strokeWidth={isSel ? 6 : 3} fill="none" strokeLinecap="round" className="wire-shadow" />
-                                        
-                                        {/* Drag Handle - Only visible when selected */}
-                                        {isSel && (
-                                            <g 
-                                                transform={`translate(${(p1.x+p2.x)/2 + (w.offsetX || 0)}, ${Math.max(p1.y, p2.y) + (w.offsetY || 40)})`}
-                                                onPointerDown={(e) => { 
-                                                    e.stopPropagation(); 
-                                                    // Calculate base coordinates for the drag
-                                                    setDragInfo({ 
-                                                        type: 'wireHandle', 
-                                                        id: w.id, 
-                                                        baseX: (p1.x + p2.x) / 2, 
-                                                        baseY: Math.max(p1.y, p2.y) 
-                                                    }); 
-                                                }}
-                                            >
-                                                <circle r="15" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-lg" />
-                                                <g transform="translate(-8, -8)" style={{pointerEvents: 'none'}}> 
-                                                    <Icon name="move" size={16} className="text-blue-500" />
-                                                </g>
+                                        return (
+                                            <g key={w.id} className="pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}>
+                                                <path d={path} stroke="transparent" strokeWidth="30" fill="none" />
+                                                <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 12 : 8} fill="none" strokeLinecap="round" />
+                                                <path d={path} stroke={isSel ? "#fbbf24" : wireColor} strokeWidth={isSel ? 6 : 3} fill="none" strokeLinecap="round" className="wire-shadow" />
+                                                {isSel && (
+                                                    <g 
+                                                        transform={`translate(${(p1.x+p2.x)/2 + (w.offsetX || 0)}, ${Math.max(p1.y, p2.y) + (w.offsetY || 40)})`}
+                                                        onPointerDown={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setDragInfo({ type: 'wireHandle', id: w.id, baseX: (p1.x + p2.x) / 2, baseY: Math.max(p1.y, p2.y) }); 
+                                                        }}
+                                                    >
+                                                        <circle r="15" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-lg" />
+                                                        <g transform="translate(-8, -8)" style={{pointerEvents: 'none'}}> 
+                                                            <Icon name="move" size={16} className="text-blue-500" />
+                                                        </g>
+                                                    </g>
+                                                )}
                                             </g>
-                                        )}
-                                    </g>
-                                );
-                            })}
-                            {tempWire && <path d={getWirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2)} stroke="#fbbf24" strokeWidth="4" strokeDasharray="5 5" fill="none" />}
-                        </svg>
+                                        );
+                                    })}
+                                    {tempWire && <path d={getWirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2)} stroke="#fbbf24" strokeWidth="4" strokeDasharray="5 5" fill="none" />}
+                                </svg>
 
-                        {components.map(comp => {
-                            const spec = SPECS[comp.type];
-                            const state = simResults.states[comp.id] || {};
-                            const isSel = selectedObj?.type === 'comp' && selectedObj.id === comp.id;
-                            const isCharging = Object.values(simResults.states).some(s => s.isCharging); // Check global charging for battery visual
+                                {components.map(comp => {
+                                    const spec = SPECS[comp.type];
+                                    const state = simResults.states[comp.id] || {};
+                                    const isSel = selectedObj?.type === 'comp' && selectedObj.id === comp.id;
+                                    const isCharging = Object.values(simResults.states).some(s => s.isCharging); 
 
-                            return (
-                                <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
-                                    <div onPointerDown={(e) => { e.stopPropagation(); const pos = getLocalPos(e); setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }} className={`relative cursor-move transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
-                                        {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
-                                        <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
-                                            {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} />}
-                                            {/* Pass isCharging to Battery for Visual Feedback */}
-                                            {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} isCharging={isCharging && comp.soc < 100} />}
-                                            {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
-                                            {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
-                                            {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                            {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                            {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                            {comp.type === COMPONENT_TYPES.DC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="DC SPD" color="#991b1b" />}
-                                            {comp.type === COMPONENT_TYPES.AC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="AC SPD" color="#166534" />}
-                                            {comp.type === COMPONENT_TYPES.GROUND_BAR && <GroundBarVisual width={spec.width} height={spec.height} />}
-                                            {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_POS && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.POS} label="จุดพ่วง (+)" />}
-                                            {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_NEG && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.NEG} label="จุดพ่วง (-)" />}
-                                            {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_AC_L && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.AC_L} label="จุดพ่วง AC (L)" />}
-                                            {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_AC_N && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.AC_N} label="จุดพ่วง AC (N)" />}
-                                            {comp.type === COMPONENT_TYPES.ENERGY_METER && <AcMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
-                                            {comp.type === COMPONENT_TYPES.DC_WATT_METER && <DcWattMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
-                                            {comp.type === COMPONENT_TYPES.CONSUMER_MAIN && <ConsumerMainVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                            {comp.type === COMPONENT_TYPES.CONSUMER_SUB && <ConsumerSubVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                            {['inverter','breaker_dc','ac_breaker','ac_source'].includes(comp.type) && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
-                                            
-                                            {spec.terminals?.map(t => (
-                                                <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} isHovered={hoveredTerm?.compId === comp.id && hoveredTerm?.termId === t.id} onPointerDown={(e) => { const pos = getLocalPos(e); setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x+t.x, y1: comp.y+spec.height+5, x2: pos.x, y2: pos.y }); }} />
-                                            ))}
-                                        </svg>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                    return (
+                                        <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
+                                            <div onPointerDown={(e) => { e.stopPropagation(); const pos = getLocalPos(e); setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }} className={`relative cursor-move transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
+                                                {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
+                                                <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
+                                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} />}
+                                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} isCharging={isCharging && comp.soc < 100} />}
+                                                    {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
+                                                    {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
+                                                    {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.DC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="DC SPD" color="#991b1b" />}
+                                                    {comp.type === COMPONENT_TYPES.AC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="AC SPD" color="#166534" />}
+                                                    {comp.type === COMPONENT_TYPES.GROUND_BAR && <GroundBarVisual width={spec.width} height={spec.height} />}
+                                                    {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_POS && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.POS} label="จุดพ่วง (+)" />}
+                                                    {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_NEG && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.NEG} label="จุดพ่วง (-)" />}
+                                                    {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_AC_L && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.AC_L} label="จุดพ่วง AC (L)" />}
+                                                    {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_AC_N && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.AC_N} label="จุดพ่วง AC (N)" />}
+                                                    {comp.type === COMPONENT_TYPES.ENERGY_METER && <AcMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
+                                                    {comp.type === COMPONENT_TYPES.DC_WATT_METER && <DcWattMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
+                                                    {comp.type === COMPONENT_TYPES.CONSUMER_MAIN && <ConsumerMainVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.CONSUMER_SUB && <ConsumerSubVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                                    {['inverter','breaker_dc','ac_breaker','ac_source'].includes(comp.type) && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
+                                                    
+                                                    {spec.terminals?.map(t => (
+                                                        <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} isHovered={hoveredTerm?.compId === comp.id && hoveredTerm?.termId === t.id} onPointerDown={(e) => { const pos = getLocalPos(e); setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x+t.x, y1: comp.y+spec.height+5, x2: pos.x, y2: pos.y }); }} />
+                                                    ))}
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
@@ -804,7 +832,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-		<script>
+	<script>
     // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
@@ -822,5 +850,6 @@
         }
     })(document,window.navigator,'standalone');
 </script>
+
 </body>
 </html>
