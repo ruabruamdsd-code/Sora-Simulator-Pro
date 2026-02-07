@@ -83,7 +83,9 @@
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', INVERTER: 'inverter',
             BREAKER_DC: 'breaker_dc', FUSE: 'fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
             AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', DC_WATT_METER: 'dc_watt_meter', AC_SOURCE: 'ac_source', 
-            GROUND_BAR: 'ground_bar', TERMINAL_BLOCK_POS: 'terminal_block_pos', TERMINAL_BLOCK_NEG: 'terminal_block_neg', 
+            GROUND_BAR: 'ground_bar', TERMINAL_BLOCK_POS: 'terminal_block_pos', TERMINAL_BLOCK_NEG: 'terminal_block_neg',
+            TERMINAL_BLOCK_AC_L: 'terminal_block_ac_l', TERMINAL_BLOCK_AC_N: 'terminal_block_ac_n',
+            CONSUMER_MAIN: 'consumer_main', CONSUMER_SUB: 'consumer_sub',
             SOCKET: 'socket', BULB: 'bulb', MOTOR: 'motor'
         };
 
@@ -104,12 +106,16 @@
             [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 130, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 25, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 50, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 85, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 105, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 130, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 25, color: COLORS.POS}, {id: 'in_neg', label: 'IN-', x: 45, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 85, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 105, color: COLORS.NEG}] },
             [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 30, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 50, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 70, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 90, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.CONSUMER_MAIN]: { label: 'Main Breaker', icon: 'shield', width: 120, height: 110, terminals: [{id: 'in_l', label: 'L-เข้า', x: 30, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 50, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 70, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 90, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.CONSUMER_SUB]: { label: 'Sub Breaker', icon: 'toggle-right', width: 80, height: 100, terminals: [{id: 'in', label: 'L-เข้า', x: 25, color: COLORS.AC_L}, {id: 'out', label: 'L-ออก', x: 55, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 90, height: 90, terminals: [{id: 'pos', label: '+', x: 25, color: COLORS.POS}, {id: 'neg', label: '-', x: 45, color: COLORS.NEG}, {id: 'g', label: 'G', x: 65, color: COLORS.G}] },
             [COMPONENT_TYPES.AC_SURGE]: { label: 'AC SPD', icon: 'shield-check', width: 90, height: 90, terminals: [{id: 'l', label: 'L', x: 25, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 45, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 65, color: COLORS.G}] },
             [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse', icon: 'shield-check', width: 80, height: 60, terminals: [{id: 'in', label: 'เข้า', x: 20, color: COLORS.POS}, {id: 'out', label: 'ออก', x: 60, color: COLORS.POS}] },
             [COMPONENT_TYPES.GROUND_BAR]: { label: 'Ground Bar', icon: 'database', width: 160, height: 45, terminals: [{id: 'g1', x: 25, color: COLORS.G}, {id: 'g2', x: 55, color: COLORS.G}, {id: 'g3', x: 85, color: COLORS.G}, {id: 'g4', x: 115, color: COLORS.G}, {id: 'g5', x: 145, color: COLORS.G}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_POS]: { label: 'จุดพ่วง (+)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.POS}, {id: 't2', x: 40, color: COLORS.POS}, {id: 't3', x: 60, color: COLORS.POS}, {id: 't4', x: 80, color: COLORS.POS}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_NEG]: { label: 'จุดพ่วง (-)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.NEG}, {id: 't2', x: 40, color: COLORS.NEG}, {id: 't3', x: 60, color: COLORS.NEG}, {id: 't4', x: 80, color: COLORS.NEG}] },
+            [COMPONENT_TYPES.TERMINAL_BLOCK_AC_L]: { label: 'จุดพ่วง AC (L)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_L}, {id: 't2', x: 40, color: COLORS.AC_L}, {id: 't3', x: 60, color: COLORS.AC_L}, {id: 't4', x: 80, color: COLORS.AC_L}] },
+            [COMPONENT_TYPES.TERMINAL_BLOCK_AC_N]: { label: 'จุดพ่วง AC (N)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_N}, {id: 't2', x: 40, color: COLORS.AC_N}, {id: 't3', x: 60, color: COLORS.AC_N}, {id: 't4', x: 80, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC Source', icon: 'zap', width: 110, height: 110, terminals: [{id: 'l', label: 'L', x: 30, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 55, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
             [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ', icon: 'lightbulb', width: 90, height: 110, terminals: [{id: 'l', label: 'L', x: 30, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 5, max: 200, step: 5 },
             [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์', icon: 'fan', width: 110, height: 110, terminals: [{id: 'l', label: '+', x: 35, color: COLORS.POS}, {id: 'n', label: '-', x: 75, color: COLORS.NEG}], editable: 'watts', unit: 'W', min: 10, max: 500, step: 10 },
@@ -255,6 +261,32 @@
             </g>
         );
 
+        // --- Consumer Unit Visuals ---
+        const ConsumerMainVisual = ({ width, height, isPowered }) => (
+            <g>
+                <rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" />
+                <rect x="10" y="30" width={width-20} height="50" rx="2" fill="#334155" />
+                <g transform="translate(0, 5)">
+                    <rect x={width/2 - 15} y="40" width="30" height="30" rx="2" fill="black" />
+                    <rect x={width/2 - 10} y={isPowered ? "35" : "50"} width="20" height="15" rx="2" fill={isPowered ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="1" />
+                </g>
+                <text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="bold">MAIN 2P</text>
+                <text x={width/2} y="95" textAnchor="middle" fill={isPowered ? "#16a34a" : "#94a3b8"} fontSize="9" fontWeight="bold">{isPowered ? "ON" : "OFF"}</text>
+            </g>
+        );
+
+        const ConsumerSubVisual = ({ width, height, isPowered }) => (
+            <g>
+                <rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" />
+                <rect x="15" y="30" width={width-30} height="50" rx="2" fill="#334155" />
+                <g transform="translate(0, 5)">
+                   <rect x={width/2 - 8} y="40" width="16" height="30" rx="2" fill="black" />
+                   <rect x={width/2 - 6} y={isPowered ? "35" : "50"} width="12" height="15" rx="2" fill={isPowered ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="1" />
+                </g>
+                <text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="9" fontWeight="bold">SUB 1P</text>
+            </g>
+        );
+
         const GroundBarVisual = ({ width, height }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} rx="4" fill="#16a34a" stroke="#15803d" strokeWidth="2" />
@@ -328,7 +360,7 @@
 
                 // Merge Nets via Internal Connections
                 components.forEach(c => {
-                    if ([COMPONENT_TYPES.GROUND_BAR, COMPONENT_TYPES.TERMINAL_BLOCK_POS, COMPONENT_TYPES.TERMINAL_BLOCK_NEG].includes(c.type)) {
+                    if ([COMPONENT_TYPES.GROUND_BAR, COMPONENT_TYPES.TERMINAL_BLOCK_POS, COMPONENT_TYPES.TERMINAL_BLOCK_NEG, COMPONENT_TYPES.TERMINAL_BLOCK_AC_L, COMPONENT_TYPES.TERMINAL_BLOCK_AC_N].includes(c.type)) {
                         const termIds = SPECS[c.type].terminals.map(t => `${c.id}_${t.id}`);
                         if (termIds.length > 1) {
                             let commonNet = getNet(termIds[0]);
@@ -353,66 +385,52 @@
                 const noiseV = (Math.random() - 0.5) * 0.2; // +/- 0.1V
                 const noiseW = (Math.random() - 0.5) * 5;   // +/- 2.5W
 
-                // Step 1: Identify Battery & PV State
+                // --- Base Sources (Independent) ---
                 const batteries = components.filter(c => c.type === COMPONENT_TYPES.BATTERY);
                 const panels = components.filter(c => c.type === COMPONENT_TYPES.PANEL);
                 const hasBattery = batteries.length > 0;
 
-                // --- Calculate PV Voltage ---
+                // PV Voltage (Source)
                 panels.forEach(pv => {
                     const maxV = pv.maxVoltage || 40;
-                    // Add noise to PV voltage
                     const v = (maxV * (sunIntensity/100)) + noiseV; 
                     const pos = getNet(`${pv.id}_pos`); const neg = getNet(`${pv.id}_neg`);
                     if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
                     netVoltages.set(pos, (netVoltages.get(neg)||0) + v);
                 });
 
-                // --- Calculate Battery Voltage (Complex Model) ---
-                // We need to know if we are charging or discharging to set the voltage.
-                // This is a simplified iterative approach.
-                // 1. Assume resting voltage based on SOC
-                // 2. See if Charger is active (PV > Bat). If so, voltage rises.
-                // 3. See if Loads are active. If so, voltage sags.
-                
+                // Battery Voltage (Source Base)
                 let systemBatVoltage = 0;
-                
                 batteries.forEach(bat => {
                    if((bat.soc !== undefined ? bat.soc : 50) > 0) { 
                        const pos = getNet(`${bat.id}_pos`); const neg = getNet(`${bat.id}_neg`);
                        if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
-
-                       // Base Voltage (SOC curve)
                        let soc = bat.soc || 50;
-                       let baseV = 11.8 + (soc / 100) * 1.0; // 11.8V to 12.8V
-
-                       // Check Charger State (simplified)
-                       // Find if any charger is connected to this battery net
-                       // And if that charger has PV input
-                       // For simplicity in this loop, we just check global PV state + connection later
-                       // Here we just set a "Potential" voltage
-                       
-                       // We will set the final voltage after determining load/charge state in the component loop
-                       // For now, set a preliminary voltage to allow current to flow
+                       let baseV = 11.8 + (soc / 100) * 1.0; 
                        netVoltages.set(pos, baseV); 
                        systemBatVoltage = baseV;
                    }
                 });
 
+                // AC Source
                 components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).forEach(src => {
                     const l = getNet(`${src.id}_l`); const n = getNet(`${src.id}_n`);
-                    netVoltages.set(n, 0); netVoltages.set(l, 220 + noiseV*5); // AC noise is higher
+                    netVoltages.set(n, 0); netVoltages.set(l, 220 + noiseV*5); 
+                    compStates[src.id] = { isPowered: true };
                 });
                 
-                // Propagate Voltages & Calculate States
-                // Run multiple passes to allow voltage to stabilize across breakers/fuses
+                // --- Iterative Simulation Loop ---
+                // Run multiple passes to ensure active components (Charger, Inverter) can propagate their generated voltages through the network
+                let isSystemCharging = false;
+
                 for(let pass=0; pass<3; pass++) {
+                    
+                    // 1. Passive Propagation (Breakers, Fuses, Meters)
                     components.forEach(c => {
-                         // Voltage Propagation
-                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER].includes(c.type)) {
+                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(c.type)) {
                             let pairs = [];
-                            if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
-                            else if (c.type === COMPONENT_TYPES.FUSE) pairs = [['in', 'out']];
+                            if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
+                            else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
                             else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
                             else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
 
@@ -421,87 +439,90 @@
                                 if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
                                 else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
                             });
+
+                            // Check status for visual feedback
+                            if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
+                                const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
+                                const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
+                                if(v > 50) compStates[c.id] = { isPowered: true };
+                            }
+                            if(c.type === COMPONENT_TYPES.CONSUMER_SUB) {
+                                const l = getNet(`${c.id}_in`); 
+                                // Since Sub breaker only has 1 line, check if that line has voltage (roughly > 50V absolute or relative to known neutral if we tracked it, but for simplicity just check potential)
+                                const v = netVoltages.get(l) || 0;
+                                if(v > 50) compStates[c.id] = { isPowered: true };
+                            }
+                            if(c.type === COMPONENT_TYPES.BREAKER_DC) {
+                                const p = getNet(`${c.id}_in_1`); const n = getNet(`${c.id}_in_2`);
+                                const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
+                                if(v > 10) compStates[c.id] = { isPowered: true };
+                            }
                         }
                     });
-                }
 
-                // --- Calculate Loads and Adjust Voltages ---
-                // We iterate components again to determine state and real voltages
-                
-                // First: Check Charger
-                let isSystemCharging = false;
-                components.filter(c => c.type === COMPONENT_TYPES.CHARGER).forEach(c => {
-                    const pvp = getNet(`${c.id}_pv_pos`);
-                    const batp = getNet(`${c.id}_bat_pos`);
-                    const loadp = getNet(`${c.id}_load_pos`);
+                    // 2. Active Components Logic (Charger & Inverter)
                     
-                    const vpv = netVoltages.get(pvp) || 0;
-                    const vbat = netVoltages.get(batp) || 0;
-                    
-                    // Charging Logic: PV must be > Battery + overhead
-                    const isCharging = vpv > (vbat + 1.0) && vpv > 13;
-                    
-                    if(isCharging) {
-                        isSystemCharging = true;
-                        // Boost Battery Voltage when charging (Voltage Swell)
-                        // Higher sun = higher swell
-                        const chargeBoost = 0.5 + (sunIntensity/100) * 1.0 + noiseV;
-                        const newBatV = Math.min(14.4, systemBatVoltage + chargeBoost);
+                    // Charger Logic
+                    components.filter(c => c.type === COMPONENT_TYPES.CHARGER).forEach(c => {
+                        const pvp = getNet(`${c.id}_pv_pos`);
+                        const batp = getNet(`${c.id}_bat_pos`);
+                        const loadp = getNet(`${c.id}_load_pos`);
                         
-                        // Update net voltage for battery
-                        if(batp) netVoltages.set(batp, newBatV);
-                        // Also set load terminal to regulated 12V (or Vbat)
-                        if(loadp) netVoltages.set(loadp, 12.0 + noiseV); 
-                    } else {
-                        // Not charging, battery is at resting or sagging voltage
-                        // Load terminal gets battery voltage
-                        if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
-                    }
-                    
-                    // Check if load terminal has a connection
-                    const hasWireOnLoad = wires.some(w => (w.from === c.id && w.fromTerm === 'load_pos') || (w.to === c.id && w.toTerm === 'load_pos'));
-                    
-                    compStates[c.id] = { isCharging, hasLoad: hasWireOnLoad && (vbat > 10 || isCharging) };
-                });
+                        const vpv = netVoltages.get(pvp) || 0;
+                        const vbat = netVoltages.get(batp) || 0;
+                        
+                        const isCharging = vpv > (vbat + 1.0) && vpv > 13;
+                        if(isCharging) isSystemCharging = true;
+                        
+                        if(isCharging) {
+                            const chargeBoost = 0.5 + (sunIntensity/100) * 1.0 + noiseV;
+                            const newBatV = Math.min(14.4, systemBatVoltage + chargeBoost);
+                            if(batp) netVoltages.set(batp, newBatV);
+                            if(loadp) netVoltages.set(loadp, 12.0 + noiseV); 
+                        } else {
+                            if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
+                        }
+                        const hasWireOnLoad = wires.some(w => (w.from === c.id && w.fromTerm === 'load_pos') || (w.to === c.id && w.toTerm === 'load_pos'));
+                        compStates[c.id] = { isCharging, hasLoad: hasWireOnLoad && (vbat > 10 || isCharging) };
+                    });
 
-                // Second: Check Loads & Inverter
-                components.forEach(c => {
-                     if(c.type === COMPONENT_TYPES.INVERTER) {
+                    // Inverter Logic
+                    components.filter(c => c.type === COMPONENT_TYPES.INVERTER).forEach(c => {
                         const acl = getNet(`${c.id}_ac_l`); const dcp = getNet(`${c.id}_dc_pos`);
                         const vIn = netVoltages.get(dcp) || 0;
                         if(vIn > 11) { 
                             netVoltages.set(acl, 220 + noiseV*5); 
                             compStates[c.id] = { isPowered: true }; 
-                            
-                            // Inverter Self Consumption
-                            currentBatteryDrain += 10 + Math.abs(noiseW); 
+                            currentBatteryDrain += 10 + Math.abs(noiseW); // Self consumption accum (approx per pass, but reset outside)
+                        } else {
+                             compStates[c.id] = { isPowered: false }; 
                         }
-                    }
-                });
+                    });
+                }
                 
-                // Check Consumers
+                // --- Load Consumers Calculation ---
+                // Reset drain to recount correctly based on final voltage state
+                currentBatteryDrain = 0;
+                components.filter(c => c.type === COMPONENT_TYPES.INVERTER && compStates[c.id]?.isPowered).forEach(() => {
+                    currentBatteryDrain += 10; // Base inverter load
+                });
+
                 components.forEach(c => {
                      if(['bulb','socket','motor'].includes(c.type)) {
                         const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
                         const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
                         
                         if (v > 10 && masterLoadOn) { 
-                            // Add noise to watts calculation
                             const nominalWatts = c.watts || 100;
                             const actualWatts = nominalWatts + noiseW;
-                            
                             compStates[c.id] = { isPowered: true, volts: v };
                             
                             if (c.type === COMPONENT_TYPES.MOTOR) {
-                                // DC Load (Connected to Battery/Charger)
                                 currentBatteryDrain += actualWatts;
                             } else {
-                                // AC Load (Connected via Inverter)
                                 const anyInverterOn = components.some(x => x.type === COMPONENT_TYPES.INVERTER && compStates[x.id]?.isPowered);
                                 if (anyInverterOn) {
                                     currentAcWatts += actualWatts;
-                                    // Inverter Efficiency Loss (e.g. 90% efficient)
-                                    // Battery must supply Watts / 0.9
                                     currentBatteryDrain += (actualWatts / 0.9);
                                 }
                             }
@@ -511,26 +532,24 @@
                     }
                 });
 
-                // Final Pass: Voltage Sag due to Load
-                // If heavy load, drop the battery net voltage
+                // --- Final Voltage Sag ---
                 if (currentBatteryDrain > 0 && hasBattery) {
-                    const sag = (currentBatteryDrain / 2000) * 1.0; // Max 1V sag at 2000W
+                    const sag = (currentBatteryDrain / 2000) * 1.0; 
                     batteries.forEach(bat => {
                         const pos = getNet(`${bat.id}_pos`);
                         const currentV = netVoltages.get(pos);
-                        if (currentV && !isSystemCharging) { // Only sag if not actively being pushed by charger
+                        if (currentV && !isSystemCharging) {
                              netVoltages.set(pos, Math.max(10.5, currentV - sag));
                         }
                     });
                 }
                 
-                // Meters Display Update
+                // --- Meters Display Update ---
                 components.forEach(c => {
                     if(c.type === COMPONENT_TYPES.ENERGY_METER) {
                         const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
                         const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
                         const w = (v > 100) ? currentAcWatts : 0;
-                        // Add jitter to display
                         const displayV = v > 0 ? v + (Math.random()-0.5)*2 : 0;
                         const displayW = w > 0 ? w + (Math.random()-0.5)*5 : 0;
                         compStates[c.id] = { volts: displayV, watts: displayW };
@@ -762,8 +781,12 @@
                                             {comp.type === COMPONENT_TYPES.GROUND_BAR && <GroundBarVisual width={spec.width} height={spec.height} />}
                                             {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_POS && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.POS} label="จุดพ่วง (+)" />}
                                             {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_NEG && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.NEG} label="จุดพ่วง (-)" />}
+                                            {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_AC_L && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.AC_L} label="จุดพ่วง AC (L)" />}
+                                            {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_AC_N && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.AC_N} label="จุดพ่วง AC (N)" />}
                                             {comp.type === COMPONENT_TYPES.ENERGY_METER && <AcMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
                                             {comp.type === COMPONENT_TYPES.DC_WATT_METER && <DcWattMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
+                                            {comp.type === COMPONENT_TYPES.CONSUMER_MAIN && <ConsumerMainVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                            {comp.type === COMPONENT_TYPES.CONSUMER_SUB && <ConsumerSubVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
                                             {['inverter','breaker_dc','ac_breaker','ac_source'].includes(comp.type) && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
                                             
                                             {spec.terminals?.map(t => (
@@ -781,7 +804,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-	<script>
+		<script>
     // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
