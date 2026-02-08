@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Solar Simulator Pro Thai - ระบบจำลองโซล่าเซลล์</title>
-	<meta name="apple-mobile-web-app-title" content="Solar Simulator">
+    <meta name="apple-mobile-web-app-title" content="Solar Simulator">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-180x180.png">
@@ -21,12 +21,12 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
         body { 
             font-family: 'Sarabun', sans-serif; 
-            touch-action: none; /* Prevent browser zooming/panning globally mostly, handle in specific elements */
+            touch-action: none; 
             overscroll-behavior: none;
         }
         .grid-bg {
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 24px 24px;
+            background-size: 20px 20px; /* Adjusted to 20px for better snapping */
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -39,7 +39,7 @@
             border: 3px solid white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-        .wire-shadow { filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2)); }
+        .wire-shadow { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1)); }
         .animate-spin-fast {
             animation: spin 0.5s linear infinite;
         }
@@ -70,7 +70,6 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Force touch action on interactive elements */
         .touch-none {
             touch-action: none !important;
         }
@@ -100,6 +99,9 @@
             return <i data-lucide={name} ref={iconRef} className={className} {...props}></i>;
         };
 
+        const GRID_SIZE = 20;
+        const snapToGrid = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
+
         // --- Configuration ---
         const COMPONENT_TYPES = {
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', INVERTER: 'inverter',
@@ -112,8 +114,8 @@
         };
 
         const COLORS = {
-            POS: '#ef4444', // Red (สีแดง) - Positive
-            NEG: '#2563eb', // Blue (สีน้ำเงิน) - Negative
+            POS: '#ef4444', // Red
+            NEG: '#2563eb', // Blue
             AC_L: '#854d0e', // Brown
             AC_N: '#3b82f6', // Standard Blue
             G: '#16a34a'    // Green
@@ -144,10 +146,13 @@
             [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ', icon: 'power', width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 25, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 55, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 100, max: 2000, step: 50 },
         };
 
-        const getWirePath = (x1, y1, x2, y2, offX = 0, offY = 40) => {
-            const midY = Math.max(y1, y2) + offY;
-            const midX = (x1 + x2) / 2 + offX;
-            return `M ${x1} ${y1} L ${x1} ${midY} L ${midX} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+        const getPolylinePath = (p1, waypoints, p2) => {
+            let path = `M ${p1.x} ${p1.y} `;
+            waypoints.forEach(wp => {
+                path += `L ${wp.x} ${wp.y} `;
+            });
+            path += `L ${p2.x} ${p2.y}`;
+            return path;
         };
 
         // --- Visual Components ---
@@ -162,6 +167,8 @@
             </g>
         );
 
+        // ... [Include all Visual Components: PVPanelVisual, BatteryVisual, etc. SAME AS BEFORE] ...
+        // For brevity in the diff, I will paste the core App logic changes. The Visual Components remain unchanged.
         const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
@@ -264,12 +271,10 @@
             <g>
                 <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#334155" strokeWidth="2" />
                 <rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" />
-                {/* Screen content */}
                 <text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text>
                 <text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/Math.max(volts,1)).toFixed(2) : "0.00"} A</text>
                 <text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text>
                 <text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text>
-                
                 <text x={width/2} y={height-10} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">DC POWER METER</text>
             </g>
         );
@@ -283,7 +288,6 @@
             </g>
         );
 
-        // --- Consumer Unit Visuals ---
         const ConsumerMainVisual = ({ width, height, isPowered }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" />
@@ -338,17 +342,14 @@
             const [masterLoadOn, setMasterLoadOn] = useState(true); 
             const [tick, setTick] = useState(0);
 
-            // Use refs to store latest values for the interval to access without resetting
             const simResultsRef = useRef(simResults);
             const sunIntensityRef = useRef(sunIntensity);
 
-            // Update refs when state changes
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
             useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
 
             const canvasRef = useRef(null);
 
-            // Updated getLocalPos to account for scrolling
             const getLocalPos = (e) => {
                 if (!canvasRef.current) return { x: 0, y: 0 };
                 const rect = canvasRef.current.getBoundingClientRect();
@@ -360,18 +361,15 @@
                 };
             };
 
-            // Noise and Animation Tick
             useEffect(() => {
-                const i = setInterval(() => setTick(t => (t + 1) % 100), 400); // 400ms tick for values
+                const i = setInterval(() => setTick(t => (t + 1) % 100), 400); 
                 return () => clearInterval(i);
             }, []);
 
-            // --- Simulation Logic ---
             useEffect(() => {
                 const nets = [];
                 const getNet = (id) => nets.find(s => s.has(id));
                 
-                // Initialize Nets
                 components.forEach(c => {
                     const spec = SPECS[c.type];
                     if(spec?.terminals) spec.terminals.forEach(t => {
@@ -379,14 +377,12 @@
                     });
                 });
                 
-                // Merge Nets via Wires
                 wires.forEach(w => {
                     const n1 = getNet(`${w.from}_${w.fromTerm}`);
                     const n2 = getNet(`${w.to}_${w.toTerm}`);
                     if(n1 && n2 && n1 !== n2) { n2.forEach(i => n1.add(i)); nets.splice(nets.indexOf(n2), 1); }
                 });
 
-                // Merge Nets via Internal Connections
                 components.forEach(c => {
                     if ([COMPONENT_TYPES.GROUND_BAR, COMPONENT_TYPES.TERMINAL_BLOCK_POS, COMPONENT_TYPES.TERMINAL_BLOCK_NEG, COMPONENT_TYPES.TERMINAL_BLOCK_AC_L, COMPONENT_TYPES.TERMINAL_BLOCK_AC_N].includes(c.type)) {
                         const termIds = SPECS[c.type].terminals.map(t => `${c.id}_${t.id}`);
@@ -407,18 +403,14 @@
                 const compStates = {};
                 let currentBatteryDrain = 0;
                 let currentAcWatts = 0; 
-                let batteryChargingWatts = 0;
 
-                // Noise factors (fluctuate slightly every tick)
-                const noiseV = (Math.random() - 0.5) * 0.2; // +/- 0.1V
-                const noiseW = (Math.random() - 0.5) * 5;   // +/- 2.5W
+                const noiseV = (Math.random() - 0.5) * 0.2; 
+                const noiseW = (Math.random() - 0.5) * 5;   
 
-                // --- Base Sources (Independent) ---
                 const batteries = components.filter(c => c.type === COMPONENT_TYPES.BATTERY);
                 const panels = components.filter(c => c.type === COMPONENT_TYPES.PANEL);
                 const hasBattery = batteries.length > 0;
 
-                // PV Voltage (Source)
                 panels.forEach(pv => {
                     const maxV = pv.maxVoltage || 40;
                     const v = (maxV * (sunIntensity/100)) + noiseV; 
@@ -427,7 +419,6 @@
                     netVoltages.set(pos, (netVoltages.get(neg)||0) + v);
                 });
 
-                // Battery Voltage (Source Base)
                 let systemBatVoltage = 0;
                 batteries.forEach(bat => {
                    if((bat.soc !== undefined ? bat.soc : 50) > 0) { 
@@ -440,20 +431,15 @@
                    }
                 });
 
-                // AC Source
                 components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).forEach(src => {
                     const l = getNet(`${src.id}_l`); const n = getNet(`${src.id}_n`);
                     netVoltages.set(n, 0); netVoltages.set(l, 220 + noiseV*5); 
                     compStates[src.id] = { isPowered: true };
                 });
                 
-                // --- Iterative Simulation Loop ---
-                // Run multiple passes to ensure active components (Charger, Inverter) can propagate their generated voltages through the network
                 let isSystemCharging = false;
 
                 for(let pass=0; pass<3; pass++) {
-                    
-                    // 1. Passive Propagation (Breakers, Fuses, Meters)
                     components.forEach(c => {
                         if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(c.type)) {
                             let pairs = [];
@@ -468,7 +454,6 @@
                                 else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
                             });
 
-                            // Check status for visual feedback
                             if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
                                 const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
                                 const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
@@ -487,9 +472,6 @@
                         }
                     });
 
-                    // 2. Active Components Logic (Charger & Inverter)
-                    
-                    // Charger Logic
                     components.filter(c => c.type === COMPONENT_TYPES.CHARGER).forEach(c => {
                         const pvp = getNet(`${c.id}_pv_pos`);
                         const batp = getNet(`${c.id}_bat_pos`);
@@ -513,25 +495,22 @@
                         compStates[c.id] = { isCharging, hasLoad: hasWireOnLoad && (vbat > 10 || isCharging) };
                     });
 
-                    // Inverter Logic
                     components.filter(c => c.type === COMPONENT_TYPES.INVERTER).forEach(c => {
                         const acl = getNet(`${c.id}_ac_l`); const dcp = getNet(`${c.id}_dc_pos`);
                         const vIn = netVoltages.get(dcp) || 0;
                         if(vIn > 11) { 
                             netVoltages.set(acl, 220 + noiseV*5); 
                             compStates[c.id] = { isPowered: true }; 
-                            currentBatteryDrain += 10 + Math.abs(noiseW); // Self consumption accum (approx per pass, but reset outside)
+                            currentBatteryDrain += 10 + Math.abs(noiseW); 
                         } else {
                              compStates[c.id] = { isPowered: false }; 
                         }
                     });
                 }
                 
-                // --- Load Consumers Calculation ---
-                // Reset drain to recount correctly based on final voltage state
                 currentBatteryDrain = 0;
                 components.filter(c => c.type === COMPONENT_TYPES.INVERTER && compStates[c.id]?.isPowered).forEach(() => {
-                    currentBatteryDrain += 10; // Base inverter load
+                    currentBatteryDrain += 10; 
                 });
 
                 components.forEach(c => {
@@ -559,7 +538,6 @@
                     }
                 });
 
-                // --- Final Voltage Sag ---
                 if (currentBatteryDrain > 0 && hasBattery) {
                     const sag = (currentBatteryDrain / 2000) * 1.0; 
                     batteries.forEach(bat => {
@@ -571,7 +549,6 @@
                     });
                 }
                 
-                // --- Meters Display Update ---
                 components.forEach(c => {
                     if(c.type === COMPONENT_TYPES.ENERGY_METER) {
                         const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
@@ -594,9 +571,8 @@
                 });
 
                 setSimResults({ voltages: netVoltages, states: compStates, batteryDrainWatts: currentBatteryDrain });
-            }, [components, wires, sunIntensity, masterLoadOn, tick]); // Re-run on tick
+            }, [components, wires, sunIntensity, masterLoadOn, tick]); 
 
-            // --- Battery SOC Interval ---
             useEffect(() => {
                 let interval;
                 if (isRunning) {
@@ -607,18 +583,16 @@
                                 const currentSim = simResultsRef.current;
                                 const currentSun = sunIntensityRef.current;
                                 
-                                // Charging Logic
                                 const isCharging = Object.values(currentSim.states).some(s => s.isCharging);
                                 if (isCharging) {
                                     newSoc += (currentSun / 100) * 0.8; 
                                 }
 
-                                // Discharging Logic
                                 if (currentSim.batteryDrainWatts > 0) {
                                     const drainRate = (currentSim.batteryDrainWatts / 1000) * 0.8; 
                                     newSoc -= drainRate;
                                 } else if (!isCharging && c.soc > 0) {
-                                    newSoc -= 0.01; // Self discharge
+                                    newSoc -= 0.01; 
                                 }
 
                                 return { ...c, soc: Math.min(100, Math.max(0, newSoc)) };
@@ -632,9 +606,25 @@
 
             const handlePointerMove = (e) => {
                 const pos = getLocalPos(e);
-                if(dragInfo?.type === 'comp') setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: pos.x - dragInfo.offsetX, y: pos.y - dragInfo.offsetY} : c));
-                if(dragInfo?.type === 'wireHandle') setWires(prev => prev.map(w => w.id === dragInfo.id ? { ...w, offsetX: pos.x - dragInfo.baseX, offsetY: pos.y - dragInfo.baseY } : w));
+                
+                if(dragInfo?.type === 'comp') {
+                    setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: pos.x - dragInfo.offsetX, y: pos.y - dragInfo.offsetY} : c));
+                }
+                
+                if(dragInfo?.type === 'waypoint') {
+                    const snappedPos = { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
+                    setWires(prev => prev.map(w => {
+                        if (w.id === dragInfo.wireId) {
+                            const newWp = [...w.waypoints];
+                            newWp[dragInfo.index] = { ...newWp[dragInfo.index], x: snappedPos.x, y: snappedPos.y };
+                            return { ...w, waypoints: newWp };
+                        }
+                        return w;
+                    }));
+                }
+
                 if(tempWire) setTempWire(prev => ({...prev, x2: pos.x, y2: pos.y}));
+                
                 let hit = null;
                 components.forEach(c => {
                     const spec = SPECS[c.type];
@@ -647,7 +637,6 @@
             };
 
             const addComponent = (type) => {
-                // Spawn in center of viewport or specific location? Let's keep it simple (200, 200 relative to scroll)
                 const scrollLeft = canvasRef.current ? canvasRef.current.scrollLeft : 0;
                 const scrollTop = canvasRef.current ? canvasRef.current.scrollTop : 0;
                 
@@ -675,17 +664,91 @@
                 setSelectedObj(null);
             };
 
-            const getSelectedSpec = () => {
-                if (selectedObj?.type !== 'comp') return null;
-                const comp = components.find(c => c.id === selectedObj.id);
-                if (!comp) return null;
-                return SPECS[comp.type];
+            const handleWireDoubleClick = (wireId, e) => {
+                e.stopPropagation();
+                const pos = getLocalPos(e);
+                const snappedPos = { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
+                
+                setWires(prev => prev.map(w => {
+                    if (w.id === wireId) {
+                        // Find best insertion index? Simplified: just add to end or specific calculation.
+                        // For simplicity in this "Free" mode, adding to end might be weird if path is complex.
+                        // Let's iterate segments to find closest.
+                        let bestIdx = w.waypoints.length;
+                        let minDist = Infinity;
+                        
+                        const c1 = components.find(c => c.id === w.from);
+                        const c2 = components.find(c => c.id === w.to);
+                        if (!c1 || !c2) return w;
+                        
+                        const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
+                        const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
+                        const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
+                        const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
+                        
+                        const allPoints = [p1, ...w.waypoints, p2];
+                        
+                        for(let i=0; i<allPoints.length-1; i++) {
+                            // Distance from point to line segment
+                            const A = allPoints[i];
+                            const B = allPoints[i+1];
+                            const dist = Math.abs((B.y - A.y)*pos.x - (B.x - A.x)*pos.y + B.x*A.y - B.y*A.x) / Math.hypot(B.y-A.y, B.x-A.x);
+                            
+                            // Check if projection falls within segment
+                            const dot = (pos.x - A.x)*(B.x - A.x) + (pos.y - A.y)*(B.y - A.y);
+                            const lenSq = (B.x - A.x)**2 + (B.y - A.y)**2;
+                            const param = lenSq !== 0 ? dot / lenSq : -1;
+                            
+                            if (param >= 0 && param <= 1 && dist < minDist) {
+                                minDist = dist;
+                                bestIdx = i;
+                            }
+                        }
+                        
+                        const newWp = [...w.waypoints];
+                        newWp.splice(bestIdx, 0, { id: Date.now(), x: snappedPos.x, y: snappedPos.y });
+                        return { ...w, waypoints: newWp };
+                    }
+                    return w;
+                }));
             };
 
-            const selectedSpec = getSelectedSpec();
+            const handleWaypointDoubleClick = (wireId, wpIndex, e) => {
+                e.stopPropagation();
+                setWires(prev => prev.map(w => {
+                    if (w.id === wireId) {
+                        const newWp = w.waypoints.filter((_, i) => i !== wpIndex);
+                        return { ...w, waypoints: newWp };
+                    }
+                    return w;
+                }));
+            };
+
+            const selectedSpec = selectedObj?.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type] : null;
 
             return (
-                <div className="flex flex-col h-screen overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => { if(tempWire && hoveredTerm) setWires(p => [...p, { id: Date.now(), from: tempWire.from, fromTerm: tempWire.fromTerm, to: hoveredTerm.compId, toTerm: hoveredTerm.termId, offsetX: 0, offsetY: 40 }]); setTempWire(null); setDragInfo(null); }} onClick={() => setSelectedObj(null)}>
+                <div className="flex flex-col h-screen overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => { 
+                    if(tempWire && hoveredTerm) {
+                        // Calculate initial U-shape waypoints
+                        const maxY = Math.max(tempWire.y1, tempWire.y2);
+                        const defaultY = snapToGrid(maxY + 40);
+                        const initWaypoints = [
+                            { id: Date.now() + 1, x: snapToGrid(tempWire.x1), y: defaultY },
+                            { id: Date.now() + 2, x: snapToGrid(tempWire.x2), y: defaultY }
+                        ];
+
+                        setWires(p => [...p, { 
+                            id: Date.now(), 
+                            from: tempWire.from, 
+                            fromTerm: tempWire.fromTerm, 
+                            to: hoveredTerm.compId, 
+                            toTerm: hoveredTerm.termId, 
+                            waypoints: initWaypoints
+                        }]);
+                    }
+                    setTempWire(null); 
+                    setDragInfo(null); 
+                }} onClick={() => setSelectedObj(null)}>
                     
                     {/* Horizontal Toolbar */}
                     <div className="h-20 bg-slate-900 shadow-xl flex items-center px-4 gap-6 z-50 shrink-0 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -717,7 +780,7 @@
                     {/* Main Content Wrapper */}
                     <div className="flex-1 relative overflow-hidden h-full">
 
-                        {/* Selection HUD (Fixed Position Relative to Viewer) */}
+                        {/* Selection HUD */}
                         {selectedObj && (
                             <div className="absolute top-4 right-4 z-50 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border-2 border-blue-400 w-64 animate-in slide-in-from-right duration-200 pointer-events-auto" onClick={e => e.stopPropagation()}>
                                 <div className="flex justify-between items-center mb-3">
@@ -744,7 +807,11 @@
                                     </div>
                                 )}
                                 {selectedObj.type === 'wire' && (
-                                    <div className="text-center text-xs text-slate-500">ลากจุดสีน้ำเงินเพื่อจัดสายไฟ</div>
+                                    <div className="text-center text-xs text-slate-500 space-y-1">
+                                        <p>ลากจุดสีน้ำเงินเพื่อจัดสาย</p>
+                                        <p className="text-blue-500 font-bold">ดับเบิ้ลคลิกเส้น = เพิ่มจุด</p>
+                                        <p className="text-red-500 font-bold">ดับเบิ้ลคลิกจุด = ลบจุด</p>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -761,34 +828,47 @@
                                         const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
                                         const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
                                         const isSel = selectedObj?.type === 'wire' && selectedObj.id === w.id;
-                                        const path = getWirePath(p1.x, p1.y, p2.x, p2.y, w.offsetX || 0, w.offsetY || 40);
-                                        const wireColor = t1.color; 
                                         
+                                        const waypoints = w.waypoints || [];
+                                        const path = getPolylinePath(p1, waypoints, p2);
+                                        const wireColor = t1.color; 
+
                                         return (
-                                            <g key={w.id} className="pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}>
-                                                <path d={path} stroke="transparent" strokeWidth="30" fill="none" />
-                                                <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 12 : 8} fill="none" strokeLinecap="round" />
-                                                <path d={path} stroke={isSel ? "#fbbf24" : wireColor} strokeWidth={isSel ? 6 : 3} fill="none" strokeLinecap="round" className="wire-shadow" />
-                                                {isSel && (
+                                            <g key={w.id} className="pointer-events-auto">
+                                                {/* Thick transparent stroke for easier selection & double click */}
+                                                <path d={path} stroke="transparent" strokeWidth="20" fill="none" 
+                                                      className="cursor-pointer"
+                                                      onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}
+                                                      onDoubleClick={(e) => handleWireDoubleClick(w.id, e)}
+                                                />
+                                                {/* Visible wire */}
+                                                <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 10 : 6} fill="none" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none" />
+                                                <path d={path} stroke={isSel ? "#fbbf24" : wireColor} strokeWidth={isSel ? 4 : 2} fill="none" strokeLinecap="round" strokeLinejoin="round" className="wire-shadow pointer-events-none" />
+                                                
+                                                {/* Waypoint Handles - Only visible when selected */}
+                                                {isSel && waypoints.map((wp, idx) => (
                                                     <g 
-                                                        transform={`translate(${(p1.x+p2.x)/2 + (w.offsetX || 0)}, ${Math.max(p1.y, p2.y) + (w.offsetY || 40)})`}
+                                                        key={wp.id}
+                                                        transform={`translate(${wp.x}, ${wp.y})`}
                                                         onPointerDown={(e) => { 
                                                             e.stopPropagation(); 
-                                                            setDragInfo({ type: 'wireHandle', id: w.id, baseX: (p1.x + p2.x) / 2, baseY: Math.max(p1.y, p2.y) }); 
+                                                            setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); 
                                                         }}
-                                                        style={{touchAction: 'none'}}
-                                                        className="touch-none"
+                                                        onDoubleClick={(e) => handleWaypointDoubleClick(w.id, idx, e)}
+                                                        className="cursor-move touch-none"
                                                     >
-                                                        <circle r="15" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-lg" />
-                                                        <g transform="translate(-8, -8)" style={{pointerEvents: 'none'}}> 
-                                                            <Icon name="move" size={16} className="text-blue-500" />
-                                                        </g>
+                                                        <circle r="8" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-sm hover:scale-125 transition-transform" />
                                                     </g>
-                                                )}
+                                                ))}
                                             </g>
                                         );
                                     })}
-                                    {tempWire && <path d={getWirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2)} stroke="#fbbf24" strokeWidth="4" strokeDasharray="5 5" fill="none" />}
+                                    {tempWire && (
+                                        <g>
+                                           <path d={`M ${tempWire.x1} ${tempWire.y1} L ${tempWire.x2} ${tempWire.y2}`} stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 5" fill="none" />
+                                           <circle cx={tempWire.x2} cy={tempWire.y2} r="4" fill="#fbbf24" />
+                                        </g>
+                                    )}
                                 </svg>
 
                                 {components.map(comp => {
@@ -839,6 +919,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
+	</script>
 	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
