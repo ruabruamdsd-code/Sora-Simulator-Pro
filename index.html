@@ -362,7 +362,6 @@
             const sunIntensityRef = useRef(sunIntensity);
             const lastTapRef = useRef({ time: 0, id: null });
             const lastTouchRef = useRef(null);
-            const lastDistRef = useRef(null); // Pinch distance ref
 
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
             useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
@@ -635,13 +634,8 @@
                         x: (t1.clientX + t2.clientX) / 2,
                         y: (t1.clientY + t2.clientY) / 2
                     };
-
-                    // Zooming Distance
-                    const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-                    lastDistRef.current = dist;
                 } else {
                     lastTouchRef.current = null;
-                    lastDistRef.current = null;
                 }
             };
 
@@ -663,24 +657,11 @@
                         canvasRef.current.scrollTop -= deltaY;
                     }
                     lastTouchRef.current = { x: currentX, y: currentY };
-
-                    // 2. Handle Zooming (Pinch)
-                    if (lastDistRef.current) {
-                        const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-                        const scaleFactor = currentDist / lastDistRef.current;
-                        
-                        // Apply zoom if change is significant to avoid jitter
-                        if (Math.abs(scaleFactor - 1) > 0.01) {
-                            setZoom(prev => Math.min(Math.max(prev * scaleFactor, 0.5), 3));
-                            lastDistRef.current = currentDist;
-                        }
-                    }
                 }
             };
 
             const handleTouchEnd = () => {
                 lastTouchRef.current = null;
-                lastDistRef.current = null;
             };
 
             const handlePointerMove = (e) => {
@@ -1086,5 +1067,6 @@
         }
     })(document,window.navigator,'standalone');
 </script>
+
 </body>
 </html>
