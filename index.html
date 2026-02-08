@@ -26,7 +26,7 @@
         }
         .grid-bg {
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 20px 20px; /* Adjusted to 20px for better snapping */
+            background-size: 20px 20px; /* Grid Size 20px */
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -122,29 +122,30 @@
             G: '#16a34a'    // Green
         };
 
+        // Adjusted Widths and X-offsets to be multiples of 20 for perfect grid alignment
         const SPECS = {
             [COMPONENT_TYPES.PANEL]: { label: 'แผง PV', icon: 'sun', width: 120, height: 160, terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], editable: 'maxVoltage', unit: 'V', min: 12, max: 100, step: 1 },
-            [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่', icon: 'battery', width: 110, height: 130, terminals: [{id: 'pos', x: 30, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], editable: 'capacity', unit: 'Ah', min: 5, max: 500, step: 5 },
-            [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 180, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 25, color: COLORS.POS}, {id: 'pv_neg', label: 'PV-', x: 50, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 90, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 115, color: COLORS.NEG}, {id: 'load_pos', label: 'LOAD+', x: 145, color: COLORS.POS}, {id: 'load_neg', label: 'LOAD-', x: 170, color: COLORS.NEG}] },
-            [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์', icon: 'activity', width: 150, height: 110, terminals: [{id: 'dc_pos', label: 'DC+', x: 30, color: COLORS.POS}, {id: 'dc_neg', label: 'DC-', x: 55, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 105, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 130, color: COLORS.AC_N}] },
-            [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 30, color: COLORS.POS}, {id: 'in_2', label: 'เข้า', x: 50, color: COLORS.NEG}, {id: 'out_1', label: 'ออก', x: 70, color: COLORS.POS}, {id: 'out_2', label: 'ออก', x: 90, color: COLORS.NEG}] },
-            [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 130, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 25, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 50, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 85, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 105, color: COLORS.AC_N}] },
-            [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 130, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 25, color: COLORS.POS}, {id: 'in_neg', label: 'IN-', x: 45, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 85, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 105, color: COLORS.NEG}] },
-            [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 30, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 50, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 70, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 90, color: COLORS.AC_N}] },
-            [COMPONENT_TYPES.CONSUMER_MAIN]: { label: 'Main Breaker', icon: 'shield', width: 120, height: 110, terminals: [{id: 'in_l', label: 'L-เข้า', x: 30, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 50, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 70, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 90, color: COLORS.AC_N}] },
-            [COMPONENT_TYPES.CONSUMER_SUB]: { label: 'Sub Breaker', icon: 'toggle-right', width: 80, height: 100, terminals: [{id: 'in', label: 'L-เข้า', x: 25, color: COLORS.AC_L}, {id: 'out', label: 'L-ออก', x: 55, color: COLORS.AC_L}] },
-            [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 90, height: 90, terminals: [{id: 'pos', label: '+', x: 25, color: COLORS.POS}, {id: 'neg', label: '-', x: 45, color: COLORS.NEG}, {id: 'g', label: 'G', x: 65, color: COLORS.G}] },
-            [COMPONENT_TYPES.AC_SURGE]: { label: 'AC SPD', icon: 'shield-check', width: 90, height: 90, terminals: [{id: 'l', label: 'L', x: 25, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 45, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 65, color: COLORS.G}] },
+            [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่', icon: 'battery', width: 120, height: 130, terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], editable: 'capacity', unit: 'Ah', min: 5, max: 500, step: 5 },
+            [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 200, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 80, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 100, color: COLORS.NEG}, {id: 'load_pos', label: 'LOAD+', x: 140, color: COLORS.POS}, {id: 'load_neg', label: 'LOAD-', x: 160, color: COLORS.NEG}] },
+            [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์', icon: 'activity', width: 160, height: 110, terminals: [{id: 'dc_pos', label: 'DC+', x: 40, color: COLORS.POS}, {id: 'dc_neg', label: 'DC-', x: 60, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 100, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 120, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 40, color: COLORS.POS}, {id: 'in_2', label: 'เข้า', x: 60, color: COLORS.NEG}, {id: 'out_1', label: 'ออก', x: 80, color: COLORS.POS}, {id: 'out_2', label: 'ออก', x: 100, color: COLORS.NEG}] },
+            [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 40, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 140, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 20, color: COLORS.POS}, {id: 'in_neg', label: 'IN-', x: 40, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 80, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 100, color: COLORS.NEG}] },
+            [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 40, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 60, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.CONSUMER_MAIN]: { label: 'Main Breaker', icon: 'shield', width: 120, height: 110, terminals: [{id: 'in_l', label: 'L-เข้า', x: 40, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 60, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.CONSUMER_SUB]: { label: 'Sub Breaker', icon: 'toggle-right', width: 80, height: 100, terminals: [{id: 'in', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'out', label: 'L-ออก', x: 60, color: COLORS.AC_L}] },
+            [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 100, height: 90, terminals: [{id: 'pos', label: '+', x: 20, color: COLORS.POS}, {id: 'neg', label: '-', x: 40, color: COLORS.NEG}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
+            [COMPONENT_TYPES.AC_SURGE]: { label: 'AC SPD', icon: 'shield-check', width: 100, height: 90, terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 40, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
             [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse', icon: 'shield-check', width: 80, height: 60, terminals: [{id: 'in', label: 'เข้า', x: 20, color: COLORS.POS}, {id: 'out', label: 'ออก', x: 60, color: COLORS.POS}] },
-            [COMPONENT_TYPES.GROUND_BAR]: { label: 'Ground Bar', icon: 'database', width: 160, height: 45, terminals: [{id: 'g1', x: 25, color: COLORS.G}, {id: 'g2', x: 55, color: COLORS.G}, {id: 'g3', x: 85, color: COLORS.G}, {id: 'g4', x: 115, color: COLORS.G}, {id: 'g5', x: 145, color: COLORS.G}] },
+            [COMPONENT_TYPES.GROUND_BAR]: { label: 'Ground Bar', icon: 'database', width: 160, height: 45, terminals: [{id: 'g1', x: 20, color: COLORS.G}, {id: 'g2', x: 50, color: COLORS.G}, {id: 'g3', x: 80, color: COLORS.G}, {id: 'g4', x: 110, color: COLORS.G}, {id: 'g5', x: 140, color: COLORS.G}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_POS]: { label: 'จุดพ่วง (+)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.POS}, {id: 't2', x: 40, color: COLORS.POS}, {id: 't3', x: 60, color: COLORS.POS}, {id: 't4', x: 80, color: COLORS.POS}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_NEG]: { label: 'จุดพ่วง (-)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.NEG}, {id: 't2', x: 40, color: COLORS.NEG}, {id: 't3', x: 60, color: COLORS.NEG}, {id: 't4', x: 80, color: COLORS.NEG}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_L]: { label: 'จุดพ่วง AC (L)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_L}, {id: 't2', x: 40, color: COLORS.AC_L}, {id: 't3', x: 60, color: COLORS.AC_L}, {id: 't4', x: 80, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_N]: { label: 'จุดพ่วง AC (N)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_N}, {id: 't2', x: 40, color: COLORS.AC_N}, {id: 't3', x: 60, color: COLORS.AC_N}, {id: 't4', x: 80, color: COLORS.AC_N}] },
-            [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC Source', icon: 'zap', width: 110, height: 110, terminals: [{id: 'l', label: 'L', x: 30, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 55, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
-            [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ', icon: 'lightbulb', width: 90, height: 110, terminals: [{id: 'l', label: 'L', x: 30, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 5, max: 200, step: 5 },
-            [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์', icon: 'fan', width: 110, height: 110, terminals: [{id: 'l', label: '+', x: 35, color: COLORS.POS}, {id: 'n', label: '-', x: 75, color: COLORS.NEG}], editable: 'watts', unit: 'W', min: 10, max: 500, step: 10 },
-            [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ', icon: 'power', width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 25, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 55, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 100, max: 2000, step: 50 },
+            [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC Source', icon: 'zap', width: 120, height: 110, terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
+            [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ', icon: 'lightbulb', width: 100, height: 110, terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 5, max: 200, step: 5 },
+            [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์', icon: 'fan', width: 120, height: 110, terminals: [{id: 'l', label: '+', x: 40, color: COLORS.POS}, {id: 'n', label: '-', x: 80, color: COLORS.NEG}], editable: 'watts', unit: 'W', min: 10, max: 500, step: 10 },
+            [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ', icon: 'power', width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 100, max: 2000, step: 50 },
         };
 
         const getPolylinePath = (p1, waypoints, p2) => {
@@ -172,7 +173,6 @@
             </g>
         );
 
-        // ... [Include all Visual Components: PVPanelVisual, BatteryVisual, etc. SAME AS BEFORE] ...
         const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
@@ -320,7 +320,7 @@
         const GroundBarVisual = ({ width, height }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} rx="4" fill="#16a34a" stroke="#15803d" strokeWidth="2" />
-                {[25, 55, 85, 115, 145].map(cx => ( <circle key={cx} cx={cx} cy={height/2} r="5" fill="#15803d" stroke="#052e16" strokeWidth="1" /> ))}
+                {[20, 50, 80, 110, 140].map(cx => ( <circle key={cx} cx={cx} cy={height/2} r="5" fill="#15803d" stroke="#052e16" strokeWidth="1" /> ))}
             </g>
         );
 
@@ -658,7 +658,10 @@
                 const pos = getLocalPos(e);
                 
                 if(dragInfo?.type === 'comp') {
-                    setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: pos.x - dragInfo.offsetX, y: pos.y - dragInfo.offsetY} : c));
+                    // Snap Component to Grid
+                    const rawX = pos.x - dragInfo.offsetX;
+                    const rawY = pos.y - dragInfo.offsetY;
+                    setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: snapToGrid(rawX), y: snapToGrid(rawY)} : c));
                 }
                 
                 if(dragInfo?.type === 'waypoint') {
@@ -690,11 +693,12 @@
                 const scrollLeft = canvasRef.current ? canvasRef.current.scrollLeft : 0;
                 const scrollTop = canvasRef.current ? canvasRef.current.scrollTop : 0;
                 
+                // Snap Initial Position
                 setComponents(prev => [...prev, { 
                     id: Date.now().toString(), 
                     type, 
-                    x: 200 + scrollLeft, 
-                    y: 200 + scrollTop, 
+                    x: snapToGrid(200 + scrollLeft), 
+                    y: snapToGrid(200 + scrollTop), 
                     watts: 100, 
                     efficiency: 100, 
                     capacity: 100, 
@@ -994,8 +998,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-    </script>
-			</script>
+	</script>
 	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
@@ -1013,6 +1016,5 @@
         }
     })(document,window.navigator,'standalone');
 </script>
-
 </body>
 </html>
