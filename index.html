@@ -70,6 +70,7 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
+        /* Force touch action none to handle scrolling manually */
         .touch-none {
             touch-action: none !important;
         }
@@ -171,7 +172,7 @@
             </g>
         );
 
-        // ... [Visual Components: PVPanelVisual, BatteryVisual, etc. SAME AS BEFORE] ...
+        // ... [Include all Visual Components: PVPanelVisual, BatteryVisual, etc. SAME AS BEFORE] ...
         const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
@@ -347,7 +348,8 @@
 
             const simResultsRef = useRef(simResults);
             const sunIntensityRef = useRef(sunIntensity);
-            const lastTapRef = useRef({ time: 0, id: null }); // For double tap detection
+            const lastTapRef = useRef({ time: 0, id: null });
+            const lastTouchRef = useRef(null);
 
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
             useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
@@ -608,9 +610,49 @@
                 return () => clearInterval(interval);
             }, [isRunning]);
 
+            // --- Custom Touch Handling for 2-finger scroll ---
+            const handleTouchStart = (e) => {
+                if (e.touches.length === 2) {
+                    const t1 = e.touches[0];
+                    const t2 = e.touches[1];
+                    lastTouchRef.current = {
+                        x: (t1.clientX + t2.clientX) / 2,
+                        y: (t1.clientY + t2.clientY) / 2
+                    };
+                } else {
+                    lastTouchRef.current = null;
+                }
+            };
+
+            const handleTouchMove = (e) => {
+                if (e.touches.length === 2 && lastTouchRef.current) {
+                    const t1 = e.touches[0];
+                    const t2 = e.touches[1];
+                    const currentX = (t1.clientX + t2.clientX) / 2;
+                    const currentY = (t1.clientY + t2.clientY) / 2;
+
+                    const deltaX = currentX - lastTouchRef.current.x;
+                    const deltaY = currentY - lastTouchRef.current.y;
+
+                    if (canvasRef.current) {
+                        canvasRef.current.scrollLeft -= deltaX;
+                        canvasRef.current.scrollTop -= deltaY;
+                    }
+
+                    lastTouchRef.current = { x: currentX, y: currentY };
+                }
+            };
+
+            const handleTouchEnd = () => {
+                lastTouchRef.current = null;
+            };
+
             const handlePointerMove = (e) => {
+                // Prevent scrolling on single touch via dragInfo logic (handled by setPointerCapture in components usually)
+                // But touch-action: none on container stops native scroll.
+                // We rely on handleTouchMove for 2-finger scroll.
                 if (dragInfo) {
-                    e.preventDefault(); // Prevent scrolling on touch
+                    e.preventDefault(); 
                 }
                 
                 const pos = getLocalPos(e);
@@ -730,27 +772,30 @@
             const selectedSpec = selectedObj?.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type] : null;
 
             return (
-                <div className="flex flex-col h-screen overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => { 
-                    if(tempWire && hoveredTerm) {
-                        const maxY = Math.max(tempWire.y1, tempWire.y2);
-                        const defaultY = snapToGrid(maxY + 40);
-                        const initWaypoints = [
-                            { id: Date.now() + 1, x: snapToGrid(tempWire.x1), y: defaultY },
-                            { id: Date.now() + 2, x: snapToGrid(tempWire.x2), y: defaultY }
-                        ];
+                <div className="flex flex-col h-screen overflow-hidden" 
+                     onPointerMove={handlePointerMove} 
+                     onPointerUp={() => { 
+                        if(tempWire && hoveredTerm) {
+                            const maxY = Math.max(tempWire.y1, tempWire.y2);
+                            const defaultY = snapToGrid(maxY + 40);
+                            const initWaypoints = [
+                                { id: Date.now() + 1, x: snapToGrid(tempWire.x1), y: defaultY },
+                                { id: Date.now() + 2, x: snapToGrid(tempWire.x2), y: defaultY }
+                            ];
 
-                        setWires(p => [...p, { 
-                            id: Date.now(), 
-                            from: tempWire.from, 
-                            fromTerm: tempWire.fromTerm, 
-                            to: hoveredTerm.compId, 
-                            toTerm: hoveredTerm.termId, 
-                            waypoints: initWaypoints
-                        }]);
-                    }
-                    setTempWire(null); 
-                    setDragInfo(null); 
-                }} onClick={() => setSelectedObj(null)}>
+                            setWires(p => [...p, { 
+                                id: Date.now(), 
+                                from: tempWire.from, 
+                                fromTerm: tempWire.fromTerm, 
+                                to: hoveredTerm.compId, 
+                                toTerm: hoveredTerm.termId, 
+                                waypoints: initWaypoints
+                            }]);
+                        }
+                        setTempWire(null); 
+                        setDragInfo(null); 
+                     }} 
+                     onClick={() => setSelectedObj(null)}>
                     
                     {/* Horizontal Toolbar */}
                     <div className="h-20 bg-slate-900 shadow-xl flex items-center px-4 gap-6 z-50 shrink-0 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -819,7 +864,12 @@
                         )}
 
                         {/* Scrollable Canvas Area */}
-                        <div ref={canvasRef} className="w-full h-full overflow-auto relative bg-slate-100">
+                        <div ref={canvasRef} 
+                             className="w-full h-full overflow-auto relative bg-slate-100 touch-none"
+                             onTouchStart={handleTouchStart}
+                             onTouchMove={handleTouchMove}
+                             onTouchEnd={handleTouchEnd}
+                        >
                             <div className="relative grid-bg" style={{width: 3000, height: 2000}}>
                                 <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
                                     {wires.map(w => {
@@ -944,6 +994,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
+    </script>
 			</script>
 	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
@@ -962,5 +1013,6 @@
         }
     })(document,window.navigator,'standalone');
 </script>
+
 </body>
 </html>
