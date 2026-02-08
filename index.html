@@ -167,8 +167,6 @@
             </g>
         );
 
-        // ... [Include all Visual Components: PVPanelVisual, BatteryVisual, etc. SAME AS BEFORE] ...
-        // For brevity in the diff, I will paste the core App logic changes. The Visual Components remain unchanged.
         const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
@@ -344,6 +342,7 @@
 
             const simResultsRef = useRef(simResults);
             const sunIntensityRef = useRef(sunIntensity);
+            const lastTapRef = useRef({ time: 0, id: null }); // For double tap detection
 
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
             useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
@@ -665,15 +664,12 @@
             };
 
             const handleWireDoubleClick = (wireId, e) => {
-                e.stopPropagation();
+                if(e && e.stopPropagation) e.stopPropagation();
                 const pos = getLocalPos(e);
                 const snappedPos = { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
                 
                 setWires(prev => prev.map(w => {
                     if (w.id === wireId) {
-                        // Find best insertion index? Simplified: just add to end or specific calculation.
-                        // For simplicity in this "Free" mode, adding to end might be weird if path is complex.
-                        // Let's iterate segments to find closest.
                         let bestIdx = w.waypoints.length;
                         let minDist = Infinity;
                         
@@ -689,12 +685,10 @@
                         const allPoints = [p1, ...w.waypoints, p2];
                         
                         for(let i=0; i<allPoints.length-1; i++) {
-                            // Distance from point to line segment
                             const A = allPoints[i];
                             const B = allPoints[i+1];
                             const dist = Math.abs((B.y - A.y)*pos.x - (B.x - A.x)*pos.y + B.x*A.y - B.y*A.x) / Math.hypot(B.y-A.y, B.x-A.x);
                             
-                            // Check if projection falls within segment
                             const dot = (pos.x - A.x)*(B.x - A.x) + (pos.y - A.y)*(B.y - A.y);
                             const lenSq = (B.x - A.x)**2 + (B.y - A.y)**2;
                             const param = lenSq !== 0 ? dot / lenSq : -1;
@@ -714,7 +708,7 @@
             };
 
             const handleWaypointDoubleClick = (wireId, wpIndex, e) => {
-                e.stopPropagation();
+                if(e && e.stopPropagation) e.stopPropagation();
                 setWires(prev => prev.map(w => {
                     if (w.id === wireId) {
                         const newWp = w.waypoints.filter((_, i) => i !== wpIndex);
@@ -729,7 +723,6 @@
             return (
                 <div className="flex flex-col h-screen overflow-hidden" onPointerMove={handlePointerMove} onPointerUp={() => { 
                     if(tempWire && hoveredTerm) {
-                        // Calculate initial U-shape waypoints
                         const maxY = Math.max(tempWire.y1, tempWire.y2);
                         const defaultY = snapToGrid(maxY + 40);
                         const initWaypoints = [
@@ -809,8 +802,8 @@
                                 {selectedObj.type === 'wire' && (
                                     <div className="text-center text-xs text-slate-500 space-y-1">
                                         <p>ลากจุดสีน้ำเงินเพื่อจัดสาย</p>
-                                        <p className="text-blue-500 font-bold">ดับเบิ้ลคลิกเส้น = เพิ่มจุด</p>
-                                        <p className="text-red-500 font-bold">ดับเบิ้ลคลิกจุด = ลบจุด</p>
+                                        <p className="text-blue-500 font-bold">แตะ 2 ครั้งเส้น = เพิ่มจุด</p>
+                                        <p className="text-red-500 font-bold">แตะ 2 ครั้งจุด = ลบจุด</p>
                                     </div>
                                 )}
                             </div>
@@ -840,6 +833,15 @@
                                                       className="cursor-pointer"
                                                       onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}
                                                       onDoubleClick={(e) => handleWireDoubleClick(w.id, e)}
+                                                      onPointerDown={(e) => {
+                                                          const now = Date.now();
+                                                          if (now - lastTapRef.current.time < 300 && lastTapRef.current.id === `wire-${w.id}`) {
+                                                              handleWireDoubleClick(w.id, e);
+                                                              lastTapRef.current = { time: 0, id: null };
+                                                          } else {
+                                                              lastTapRef.current = { time: now, id: `wire-${w.id}` };
+                                                          }
+                                                      }}
                                                 />
                                                 {/* Visible wire */}
                                                 <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 10 : 6} fill="none" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none" />
@@ -852,7 +854,14 @@
                                                         transform={`translate(${wp.x}, ${wp.y})`}
                                                         onPointerDown={(e) => { 
                                                             e.stopPropagation(); 
-                                                            setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); 
+                                                            const now = Date.now();
+                                                            if (now - lastTapRef.current.time < 300 && lastTapRef.current.id === `wp-${wp.id}`) {
+                                                                handleWaypointDoubleClick(w.id, idx, e);
+                                                                lastTapRef.current = { time: 0, id: null };
+                                                            } else {
+                                                                lastTapRef.current = { time: now, id: `wp-${wp.id}` };
+                                                                setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); 
+                                                            }
                                                         }}
                                                         onDoubleClick={(e) => handleWaypointDoubleClick(w.id, idx, e)}
                                                         className="cursor-move touch-none"
@@ -919,7 +928,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-	</script>
+		</script>
 	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
