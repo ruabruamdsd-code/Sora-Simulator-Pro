@@ -141,7 +141,6 @@
 
         // Adjusted Widths and X-offsets to be multiples of 20 for perfect grid alignment
         const SPECS = {
-            // UPDATED: Now supports editFields array for multiple controls
             [COMPONENT_TYPES.PANEL]: { 
                 label: 'แผง PV', icon: 'sun', width: 120, height: 160, 
                 terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], 
@@ -227,7 +226,6 @@
             </g>
         );
 
-        // UPDATED: Show both voltage (V) and watts (W)
         const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage, watts }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
@@ -548,9 +546,8 @@
 
                 const netVoltages = new Map();
                 const compStates = {};
-                let currentBatteryDrain = 0;
-                let currentAcWatts = 0; 
-
+                
+                // 1. Calculate Voltages & Powered Status first
                 const noiseV = (Math.random() - 0.5) * 0.2; 
                 const noiseW = (Math.random() - 0.5) * 5;   
 
@@ -586,6 +583,7 @@
                 
                 let isSystemCharging = false;
 
+                // Propagate Voltages
                 for(let pass=0; pass<3; pass++) {
                     components.forEach(c => {
                         if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.COMBINER_BOX].includes(c.type)) {
@@ -620,20 +618,21 @@
                                 });
                             }
 
+                            // Check Breaker States (for UI mainly)
                             if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
                                 const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
                                 const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
-                                if(v > 50) compStates[c.id] = { isPowered: true };
+                                if(v > 50) compStates[c.id] = { ...compStates[c.id], isPowered: true };
                             }
                             if(c.type === COMPONENT_TYPES.CONSUMER_SUB) {
                                 const l = getNet(`${c.id}_in`); 
                                 const v = netVoltages.get(l) || 0;
-                                if(v > 50) compStates[c.id] = { isPowered: true };
+                                if(v > 50) compStates[c.id] = { ...compStates[c.id], isPowered: true };
                             }
                             if(c.type === COMPONENT_TYPES.BREAKER_DC) {
                                 const p = getNet(`${c.id}_in_1`); const n = getNet(`${c.id}_in_2`);
                                 const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
-                                if(v > 10) compStates[c.id] = { isPowered: true };
+                                if(v > 10) compStates[c.id] = { ...compStates[c.id], isPowered: true };
                             }
                         }
                     });
@@ -649,6 +648,10 @@
                         const isCharging = vpv > (vbat + 1.0) && vpv > 13;
                         if(isCharging) isSystemCharging = true;
                         
+                        // Estimate charging power for trace logic later
+                        // Basic: 10% of Panel Capacity
+                        const chargingWatts = isCharging ? (sunIntensity/100) * 200 : 0; 
+
                         if(isCharging) {
                             const chargeBoost = 0.5 + (sunIntensity/100) * 1.0 + noiseV;
                             const newBatV = Math.min(14.4, systemBatVoltage + chargeBoost);
@@ -658,7 +661,7 @@
                             if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
                         }
                         const hasWireOnLoad = wires.some(w => (w.from === c.id && w.fromTerm === 'load_pos') || (w.to === c.id && w.toTerm === 'load_pos'));
-                        compStates[c.id] = { isCharging, hasLoad: hasWireOnLoad && (vbat > 10 || isCharging) };
+                        compStates[c.id] = { ...compStates[c.id], isCharging, hasLoad: hasWireOnLoad && (vbat > 10 || isCharging), pvInputWatts: chargingWatts };
                     });
 
                     components.filter(c => c.type === COMPONENT_TYPES.INVERTER).forEach(c => {
@@ -666,46 +669,200 @@
                         const vIn = netVoltages.get(dcp) || 0;
                         if(vIn > 11) { 
                             netVoltages.set(acl, 220 + noiseV*5); 
-                            compStates[c.id] = { isPowered: true }; 
-                            currentBatteryDrain += 10 + Math.abs(noiseW); 
+                            compStates[c.id] = { ...compStates[c.id], isPowered: true }; 
                         } else {
-                             compStates[c.id] = { isPowered: false }; 
+                             compStates[c.id] = { ...compStates[c.id], isPowered: false }; 
                         }
                     });
                 }
                 
-                currentBatteryDrain = 0;
-                components.filter(c => c.type === COMPONENT_TYPES.INVERTER && compStates[c.id]?.isPowered).forEach(() => {
-                    currentBatteryDrain += 10; 
-                });
+                // 2. Determine Individual Load Demands
+                let globalBatteryDrain = 0;
+                let globalAcWatts = 0; // Only used for sag calculation fallback
 
+                // 2.1 Basic DC/AC Loads (Bulb, Motor)
                 components.forEach(c => {
                      if(['bulb','socket','motor'].includes(c.type)) {
-                        const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
+                        const l = getNet(c.type === 'motor' ? `${c.id}_l` : `${c.id}_l`); // Motor uses l/n keys in terminals too
+                        const n = getNet(`${c.id}_n`);
                         const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
                         
                         if (v > 10 && masterLoadOn) { 
                             const nominalWatts = c.watts || 100;
                             const actualWatts = nominalWatts + noiseW;
-                            compStates[c.id] = { isPowered: true, volts: v };
+                            compStates[c.id] = { ...compStates[c.id], isPowered: true, volts: v, activeWatts: actualWatts };
                             
-                            if (c.type === COMPONENT_TYPES.MOTOR) {
-                                currentBatteryDrain += actualWatts;
-                            } else {
-                                const anyInverterOn = components.some(x => x.type === COMPONENT_TYPES.INVERTER && compStates[x.id]?.isPowered);
-                                if (anyInverterOn) {
-                                    currentAcWatts += actualWatts;
-                                    currentBatteryDrain += (actualWatts / 0.9);
-                                }
-                            }
+                            // For battery sag calc (rough)
+                            if (c.type === COMPONENT_TYPES.MOTOR) globalBatteryDrain += actualWatts;
                         } else {
-                            compStates[c.id] = { isPowered: false, volts: v };
+                            compStates[c.id] = { ...compStates[c.id], isPowered: false, volts: v, activeWatts: 0 };
                         }
                     }
                 });
 
-                if (currentBatteryDrain > 0 && hasBattery) {
-                    const sag = (currentBatteryDrain / 2000) * 1.0; 
+                // 2.2 AC Loads for Inverters (Backwards Trace for Inverter Load)
+                // We need to know how much AC load connects to each inverter to calculate DC draw
+                components.filter(c => c.type === COMPONENT_TYPES.INVERTER).forEach(inv => {
+                    let totalAcLoad = 0;
+                    if(compStates[inv.id]?.isPowered) {
+                        const startNet = getNet(`${inv.id}_ac_l`);
+                        // Simple BFS to find connected active AC loads
+                        if(startNet) {
+                            const queue = [startNet];
+                            const visited = new Set([startNet]);
+                            while(queue.length > 0) {
+                                const net = queue.pop();
+                                if(net) {
+                                    net.forEach(termId => {
+                                        const [cId, tName] = termId.split('_');
+                                        // Ignore self
+                                        if(cId === inv.id) return;
+                                        
+                                        const comp = components.find(x => x.id === cId);
+                                        // If Load
+                                        if(['bulb','socket'].includes(comp.type) && (tName === 'l' || tName === 'in' || tName === 'in_l') && compStates[cId]?.activeWatts) {
+                                            totalAcLoad += compStates[cId].activeWatts;
+                                        }
+                                        // If Breaker (Pass through)
+                                        // Simplified: Assume all AC nets connected to this inverter are part of its load if active
+                                        // Real logic requires checking breaker state.
+                                        if(['ac_breaker','consumer_main','consumer_sub','energy_meter'].includes(comp.type)) {
+                                             // Find other side
+                                             let otherTerm = null;
+                                             if(tName.includes('in')) otherTerm = tName.replace('in', 'out');
+                                             else if(tName.includes('out')) otherTerm = tName.replace('out', 'in');
+                                             
+                                             if(otherTerm) {
+                                                 const otherNet = getNet(`${cId}_${otherTerm}`);
+                                                 if(otherNet && !visited.has(otherNet)) {
+                                                     visited.add(otherNet);
+                                                     queue.push(otherNet);
+                                                 }
+                                             }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                        // Calc DC Draw
+                        const efficiency = 0.9;
+                        const selfConsumption = 10;
+                        const dcDraw = (totalAcLoad / efficiency) + selfConsumption;
+                        compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: totalAcLoad, dcInputWatts: dcDraw };
+                        globalBatteryDrain += dcDraw; // For sag
+                        globalAcWatts += totalAcLoad;
+                    } else {
+                        compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: 0, dcInputWatts: 0 };
+                    }
+                });
+
+                // 3. Trace Power for Meters (The Core Feature Request)
+                const tracePower = (startNet) => {
+                    if (!startNet) return 0;
+                    let totalWatts = 0;
+                    const queue = [startNet];
+                    const visited = new Set([startNet]);
+
+                    while (queue.length > 0) {
+                        const net = queue.pop();
+                        net.forEach(termId => {
+                            // termId format: "123456_pos"
+                            // We need to parse correctly. IDs might contain underscores? No, current IDs are Date.now()
+                            // Safe split: find last index of _
+                            const lastUnder = termId.lastIndexOf('_');
+                            const cId = termId.substring(0, lastUnder);
+                            const tName = termId.substring(lastUnder + 1);
+
+                            const comp = components.find(c => c.id === cId);
+                            if (!comp) return;
+
+                            // IS THIS A SINK (LOAD)?
+                            // 1. Standard Load (Bulb, Motor, Socket) connected via Input
+                            if ((['bulb', 'socket'].includes(comp.type) && (tName === 'l' || tName === 'in_l')) ||
+                                (comp.type === 'motor' && (tName === 'l' || tName === 'pos'))) { // Motor uses l/n in visual but labeled +/-
+                                if (compStates[cId]?.activeWatts) totalWatts += compStates[cId].activeWatts;
+                            }
+                            
+                            // 2. Inverter DC Input (Load for Battery/Panel)
+                            if (comp.type === COMPONENT_TYPES.INVERTER && (tName === 'dc_pos' || tName === 'pos')) {
+                                if (compStates[cId]?.dcInputWatts) totalWatts += compStates[cId].dcInputWatts;
+                            }
+
+                            // 3. Charger PV Input (Load for Panel)
+                            if (comp.type === COMPONENT_TYPES.CHARGER && tName === 'pv_pos') {
+                                if (compStates[cId]?.pvInputWatts) totalWatts += compStates[cId].pvInputWatts;
+                            }
+                            
+                            // IS THIS A PASS-THROUGH (SWITCH)?
+                            if (['breaker_dc', 'fuse', 'ac_breaker', 'consumer_main', 'consumer_sub', 'dc_watt_meter', 'energy_meter'].includes(comp.type)) {
+                                // Simple pass-through check (assumes closed for now or check state)
+                                // Note: We only pass through if it's "Input" side finding "Output" side to go downstream? 
+                                // Actually, wires are undirected. We just need to cross the component.
+                                
+                                // Map terminals pairs
+                                let otherTermName = null;
+                                if(tName === 'in_1') otherTermName = 'out_1';
+                                else if(tName === 'in_2') otherTermName = 'out_2'; // Usually meters only measure one line, but let's traverse both
+                                else if(tName === 'in_pos') otherTermName = 'out_pos';
+                                else if(tName === 'in_l') otherTermName = 'out_l';
+                                else if(tName === 'in') otherTermName = 'out';
+                                // Reverse traversal (if we are checking upstream? no, we start at Meter Out and find Loads)
+                                // If we hit 'out', we are hitting the output of a breaker. We should go to 'in' to find loads upstream?
+                                // NO. Source -> Meter -> Breaker -> Load.
+                                // Meter Out -> Wire -> Breaker In -> Breaker Out -> Wire -> Load.
+                                // So if we hit Breaker In, we cross to Breaker Out.
+                                
+                                if(tName.startsWith('in')) {
+                                    if(tName === 'in') otherTermName = 'out';
+                                    if(tName === 'in_1') otherTermName = 'out_1';
+                                    if(tName === 'in_l') otherTermName = 'out_l';
+                                    if(tName === 'in_pos') otherTermName = 'out_pos';
+                                }
+
+                                if(otherTermName) {
+                                    const otherNet = getNet(`${cId}_${otherTermName}`);
+                                    if (otherNet && !visited.has(otherNet)) {
+                                        visited.add(otherNet);
+                                        queue.push(otherNet);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    return totalWatts;
+                };
+
+                // Update Meter States with Traced Power
+                components.forEach(c => {
+                    if(c.type === COMPONENT_TYPES.ENERGY_METER) {
+                        const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
+                        const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
+                        
+                        // Trace from Output L
+                        const outNet = getNet(`${c.id}_out_l`);
+                        const w = tracePower(outNet);
+                        
+                        const displayV = v > 0 ? v + (Math.random()-0.5)*2 : 0;
+                        const displayW = w > 0 ? w + (Math.random()-0.5)*2 : 0; // Less noise for traced value
+                        compStates[c.id] = { volts: displayV, watts: displayW };
+                    }
+                    if(c.type === COMPONENT_TYPES.DC_WATT_METER) {
+                        const p = getNet(`${c.id}_in_pos`); const n = getNet(`${c.id}_in_neg`);
+                        const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
+                        
+                        // Trace from Output Pos
+                        const outNet = getNet(`${c.id}_out_pos`);
+                        const w = tracePower(outNet);
+                        
+                        const displayV = v > 0 ? v + (Math.random()-0.5)*0.1 : 0;
+                        const displayW = w > 0 ? w + (Math.random()-0.5)*2 : 0;
+                        
+                        compStates[c.id] = { volts: displayV, watts: displayW };
+                    }
+                });
+
+                if (globalBatteryDrain > 0 && hasBattery) {
+                    const sag = (globalBatteryDrain / 2000) * 1.0; 
                     batteries.forEach(bat => {
                         const pos = getNet(`${bat.id}_pos`);
                         const currentV = netVoltages.get(pos);
@@ -714,29 +871,8 @@
                         }
                     });
                 }
-                
-                components.forEach(c => {
-                    if(c.type === COMPONENT_TYPES.ENERGY_METER) {
-                        const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
-                        const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
-                        const w = (v > 100) ? currentAcWatts : 0;
-                        const displayV = v > 0 ? v + (Math.random()-0.5)*2 : 0;
-                        const displayW = w > 0 ? w + (Math.random()-0.5)*5 : 0;
-                        compStates[c.id] = { volts: displayV, watts: displayW };
-                    }
-                    if(c.type === COMPONENT_TYPES.DC_WATT_METER) {
-                        const p = getNet(`${c.id}_in_pos`); const n = getNet(`${c.id}_in_neg`);
-                        const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
-                        const w = (v > 10) ? currentBatteryDrain : 0; 
-                        
-                        const displayV = v > 0 ? v + (Math.random()-0.5)*0.1 : 0;
-                        const displayW = w > 0 ? w + (Math.random()-0.5)*5 : 0;
-                        
-                        compStates[c.id] = { volts: displayV, watts: displayW };
-                    }
-                });
 
-                setSimResults({ voltages: netVoltages, states: compStates, batteryDrainWatts: currentBatteryDrain });
+                setSimResults({ voltages: netVoltages, states: compStates, batteryDrainWatts: globalBatteryDrain });
             }, [components, wires, sunIntensity, masterLoadOn, tick]); 
 
             useEffect(() => {
