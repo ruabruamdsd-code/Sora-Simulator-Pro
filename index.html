@@ -23,6 +23,10 @@
             font-family: 'Sarabun', sans-serif; 
             touch-action: none; 
             overscroll-behavior: none;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
         .grid-bg {
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
@@ -50,6 +54,7 @@
         .no-select {
             -webkit-user-select: none;
             user-select: none;
+            -webkit-touch-callout: none;
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
@@ -108,6 +113,7 @@
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', INVERTER: 'inverter',
             BREAKER_DC: 'breaker_dc', FUSE: 'fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
             AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', DC_WATT_METER: 'dc_watt_meter', AC_SOURCE: 'ac_source', 
+            COMBINER_BOX: 'combiner_box',
             GROUND_BAR: 'ground_bar', TERMINAL_BLOCK_POS: 'terminal_block_pos', TERMINAL_BLOCK_NEG: 'terminal_block_neg',
             TERMINAL_BLOCK_AC_L: 'terminal_block_ac_l', TERMINAL_BLOCK_AC_N: 'terminal_block_ac_n',
             CONSUMER_MAIN: 'consumer_main', CONSUMER_SUB: 'consumer_sub',
@@ -135,14 +141,33 @@
 
         // Adjusted Widths and X-offsets to be multiples of 20 for perfect grid alignment
         const SPECS = {
-            [COMPONENT_TYPES.PANEL]: { label: 'แผง PV', icon: 'sun', width: 120, height: 160, terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], editable: 'maxVoltage', unit: 'V', min: 12, max: 100, step: 1 },
-            [COMPONENT_TYPES.BATTERY]: { label: 'แบตเตอรี่', icon: 'battery', width: 120, height: 130, terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], editable: 'capacity', unit: 'Ah', min: 5, max: 500, step: 5 },
+            // UPDATED: Now supports editFields array for multiple controls
+            [COMPONENT_TYPES.PANEL]: { 
+                label: 'แผง PV', icon: 'sun', width: 120, height: 160, 
+                terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], 
+                editFields: [
+                    { field: 'maxVoltage', label: 'แรงดัน (Voc)', unit: 'V', min: 12, max: 100, step: 1 },
+                    { field: 'watts', label: 'กำลังไฟ (Pmax)', unit: 'W', min: 50, max: 600, step: 10 }
+                ]
+            },
+            [COMPONENT_TYPES.BATTERY]: { 
+                label: 'แบตเตอรี่', icon: 'battery', width: 120, height: 130, 
+                terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], 
+                editFields: [
+                    { field: 'capacity', label: 'ความจุ', unit: 'Ah', min: 5, max: 500, step: 5 }
+                ]
+            },
             [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 200, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 80, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 100, color: COLORS.NEG}, {id: 'load_pos', label: 'LOAD+', x: 140, color: COLORS.POS}, {id: 'load_neg', label: 'LOAD-', x: 160, color: COLORS.NEG}] },
             [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์', icon: 'activity', width: 160, height: 110, terminals: [{id: 'dc_pos', label: 'DC+', x: 40, color: COLORS.POS}, {id: 'dc_neg', label: 'DC-', x: 60, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 100, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 120, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 40, color: COLORS.POS}, {id: 'in_2', label: 'เข้า', x: 60, color: COLORS.NEG}, {id: 'out_1', label: 'ออก', x: 80, color: COLORS.POS}, {id: 'out_2', label: 'ออก', x: 100, color: COLORS.NEG}] },
             [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 40, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 140, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 20, color: COLORS.POS}, {id: 'in_neg', label: 'IN-', x: 40, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 80, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 100, color: COLORS.NEG}] },
             [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 40, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 60, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.COMBINER_BOX]: { label: 'Combiner Box', icon: 'box', width: 140, height: 140, terminals: [
+                {id: 'in1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'in1_neg', label: 'PV1-', x: 40, color: COLORS.NEG},
+                {id: 'in2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'in2_neg', label: 'PV2-', x: 80, color: COLORS.NEG},
+                {id: 'out_pos', label: 'OUT+', x: 100, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 120, color: COLORS.NEG}
+            ] },
             [COMPONENT_TYPES.CONSUMER_MAIN]: { label: 'Main Breaker', icon: 'shield', width: 120, height: 110, terminals: [{id: 'in_l', label: 'L-เข้า', x: 40, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 60, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.CONSUMER_SUB]: { label: 'Sub Breaker', icon: 'toggle-right', width: 80, height: 100, terminals: [{id: 'in', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'out', label: 'L-ออก', x: 60, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 100, height: 90, terminals: [{id: 'pos', label: '+', x: 20, color: COLORS.POS}, {id: 'neg', label: '-', x: 40, color: COLORS.NEG}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
@@ -154,9 +179,27 @@
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_L]: { label: 'จุดพ่วง AC (L)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_L}, {id: 't2', x: 40, color: COLORS.AC_L}, {id: 't3', x: 60, color: COLORS.AC_L}, {id: 't4', x: 80, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_N]: { label: 'จุดพ่วง AC (N)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_N}, {id: 't2', x: 40, color: COLORS.AC_N}, {id: 't3', x: 60, color: COLORS.AC_N}, {id: 't4', x: 80, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC Source', icon: 'zap', width: 120, height: 110, terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
-            [COMPONENT_TYPES.BULB]: { label: 'หลอดไฟ', icon: 'lightbulb', width: 100, height: 110, terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 5, max: 200, step: 5 },
-            [COMPONENT_TYPES.MOTOR]: { label: 'มอเตอร์', icon: 'fan', width: 120, height: 110, terminals: [{id: 'l', label: '+', x: 40, color: COLORS.POS}, {id: 'n', label: '-', x: 80, color: COLORS.NEG}], editable: 'watts', unit: 'W', min: 10, max: 500, step: 10 },
-            [COMPONENT_TYPES.SOCKET]: { label: 'เต้ารับ', icon: 'power', width: 80, height: 80, terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], editable: 'watts', unit: 'W', min: 100, max: 2000, step: 50 },
+            [COMPONENT_TYPES.BULB]: { 
+                label: 'หลอดไฟ', icon: 'lightbulb', width: 100, height: 110, 
+                terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], 
+                editFields: [
+                    { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 5, max: 200, step: 5 }
+                ]
+            },
+            [COMPONENT_TYPES.MOTOR]: { 
+                label: 'มอเตอร์', icon: 'fan', width: 120, height: 110, 
+                terminals: [{id: 'l', label: '+', x: 40, color: COLORS.POS}, {id: 'n', label: '-', x: 80, color: COLORS.NEG}], 
+                editFields: [
+                    { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 10, max: 500, step: 10 }
+                ]
+            },
+            [COMPONENT_TYPES.SOCKET]: { 
+                label: 'เต้ารับ', icon: 'power', width: 80, height: 80, 
+                terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], 
+                editFields: [
+                    { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 100, max: 2000, step: 50 }
+                ]
+            },
         };
 
         const getPolylinePath = (p1, waypoints, p2) => {
@@ -184,14 +227,16 @@
             </g>
         );
 
-        const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage }) => (
+        // UPDATED: Show both voltage (V) and watts (W)
+        const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage, watts }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
                 <g stroke="rgba(255,255,255,0.4)" strokeWidth="1">
                     <line x1="0" y1={height/4} x2={width} y2={height/4} /><line x1="0" y1={height/2} x2={width} y2={height/2} />
                     <line x1="0" y1={height*0.75} x2={width} y2={height*0.75} /><line x1={width/2} y1="0" x2={width/2} y2={height} />
                 </g>
-                <text x={width/2} y={height/2} textAnchor="middle" fill="white" opacity="0.8" fontSize="12" fontWeight="bold">PV {maxVoltage}V</text>
+                <text x={width/2} y={height/2 - 10} textAnchor="middle" fill="white" opacity="0.9" fontSize="12" fontWeight="bold">PV {maxVoltage}V</text>
+                <text x={width/2} y={height/2 + 10} textAnchor="middle" fill="white" opacity="0.9" fontSize="11" fontWeight="bold">{watts}W</text>
             </g>
         );
 
@@ -267,6 +312,19 @@
                 <rect x="0" y="0" width={width} height={height} rx="4" fill={color} stroke="#1e293b" strokeWidth="2" />
                 <rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="white" opacity="0.2" />
                 <text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{label}</text>
+            </g>
+        );
+
+        const CombinerBoxVisual = ({ width, height }) => (
+            <g>
+                <rect x="0" y="0" width={width} height={height} rx="6" fill="#e2e8f0" stroke="#334155" strokeWidth="2" />
+                <rect x="10" y="10" width={width-20} height={height-20} rx="4" fill="#f8fafc" stroke="#94a3b8" />
+                <path d={`M10 ${height/2} L${width-10} ${height/2}`} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2"/>
+                <text x={width/2} y="30" textAnchor="middle" fill="#475569" fontSize="11" fontWeight="bold">COMBINER BOX</text>
+                <rect x={20} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+                <rect x={width-60} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+                <text x={40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">INPUT</text>
+                <text x={width-40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">OUTPUT</text>
             </g>
         );
 
@@ -380,6 +438,76 @@
                 };
             };
 
+            // --- Robust Touch Handling to Prevent Pinch Zoom ---
+            useEffect(() => {
+                const container = canvasRef.current;
+                if (!container) return;
+
+                const handleTouchStart = (e) => {
+                    if (e.touches.length === 2) {
+                        e.preventDefault(); // Lock zoom immediately on start
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        lastTouchRef.current = {
+                            x: (t1.clientX + t2.clientX) / 2,
+                            y: (t1.clientY + t2.clientY) / 2
+                        };
+                    } else {
+                        lastTouchRef.current = null;
+                    }
+                };
+
+                const handleTouchMove = (e) => {
+                    if (e.touches.length === 2) {
+                        e.preventDefault(); // Stop native zoom
+                        
+                        // Handle Custom Panning Only
+                        if(lastTouchRef.current) {
+                            const t1 = e.touches[0];
+                            const t2 = e.touches[1];
+                            const currentX = (t1.clientX + t2.clientX) / 2;
+                            const currentY = (t1.clientY + t2.clientY) / 2;
+                            const deltaX = currentX - lastTouchRef.current.x;
+                            const deltaY = currentY - lastTouchRef.current.y;
+
+                            container.scrollLeft -= deltaX;
+                            container.scrollTop -= deltaY;
+                            lastTouchRef.current = { x: currentX, y: currentY };
+                        }
+                    }
+                };
+
+                const handleTouchEnd = () => {
+                    lastTouchRef.current = null;
+                };
+
+                // Prevent Safari Gesture Zoom
+                const handleGestureStart = (e) => {
+                    e.preventDefault();
+                };
+
+                const handleGestureChange = (e) => {
+                    e.preventDefault();
+                };
+
+                // Attach non-passive listeners to guarantee preventDefault works
+                container.addEventListener('touchstart', handleTouchStart, { passive: false });
+                container.addEventListener('touchmove', handleTouchMove, { passive: false });
+                container.addEventListener('touchend', handleTouchEnd);
+                
+                // Block document-level zooming on Safari
+                document.addEventListener('gesturestart', handleGestureStart);
+                document.addEventListener('gesturechange', handleGestureChange);
+
+                return () => {
+                    container.removeEventListener('touchstart', handleTouchStart);
+                    container.removeEventListener('touchmove', handleTouchMove);
+                    container.removeEventListener('touchend', handleTouchEnd);
+                    document.removeEventListener('gesturestart', handleGestureStart);
+                    document.removeEventListener('gesturechange', handleGestureChange);
+                };
+            }, []); // Empty dependency array to run once
+
             useEffect(() => {
                 const i = setInterval(() => setTick(t => (t + 1) % 100), 400); 
                 return () => clearInterval(i);
@@ -460,18 +588,37 @@
 
                 for(let pass=0; pass<3; pass++) {
                     components.forEach(c => {
-                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(c.type)) {
-                            let pairs = [];
-                            if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
-                            else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
-                            else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
-                            else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
+                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.COMBINER_BOX].includes(c.type)) {
+                            if(c.type === COMPONENT_TYPES.COMBINER_BOX) {
+                                // Logic for Combiner Box: Parallel connection
+                                const groups = [
+                                    ['in1_pos', 'in2_pos', 'out_pos'],
+                                    ['in1_neg', 'in2_neg', 'out_neg']
+                                ];
+                                groups.forEach(group => {
+                                    const nets = group.map(id => getNet(`${c.id}_${id}`)).filter(n => n !== undefined);
+                                    const voltages = nets.map(n => netVoltages.get(n)).filter(v => v !== undefined);
+                                    if(voltages.length > 0) {
+                                        const v = Math.max(...voltages);
+                                        nets.forEach(n => {
+                                            // Propagate highest voltage to all connected nets in the group
+                                            if(netVoltages.get(n) !== v) netVoltages.set(n, v);
+                                        });
+                                    }
+                                });
+                            } else {
+                                let pairs = [];
+                                if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
+                                else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
+                                else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
+                                else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
 
-                            pairs.forEach(([iId, oId]) => {
-                                const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
-                                if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
-                                else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
-                            });
+                                pairs.forEach(([iId, oId]) => {
+                                    const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
+                                    if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
+                                    else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
+                                });
+                            }
 
                             if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
                                 const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
@@ -604,7 +751,11 @@
                                 
                                 const isCharging = Object.values(currentSim.states).some(s => s.isCharging);
                                 if (isCharging) {
-                                    newSoc += (currentSun / 100) * 0.8; 
+                                    // CHANGED: Charging speed depends on total system PV wattage
+                                    const totalPVWatts = prev.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
+                                    // Base rate scaled by watts (assuming ~0.8 rate for 100W)
+                                    const chargeFactor = (totalPVWatts / 100) * 0.8;
+                                    newSoc += (currentSun / 100) * chargeFactor; 
                                 }
 
                                 if (currentSim.batteryDrainWatts > 0) {
@@ -622,47 +773,6 @@
                 }
                 return () => clearInterval(interval);
             }, [isRunning]);
-
-            // --- Custom Touch Handling for 2-finger scroll and zoom ---
-            const handleTouchStart = (e) => {
-                if (e.touches.length === 2) {
-                    const t1 = e.touches[0];
-                    const t2 = e.touches[1];
-                    
-                    // Panning Center
-                    lastTouchRef.current = {
-                        x: (t1.clientX + t2.clientX) / 2,
-                        y: (t1.clientY + t2.clientY) / 2
-                    };
-                } else {
-                    lastTouchRef.current = null;
-                }
-            };
-
-            const handleTouchMove = (e) => {
-                if (e.touches.length === 2 && lastTouchRef.current) {
-                    e.preventDefault(); // Stop default browser zoom/scroll
-
-                    const t1 = e.touches[0];
-                    const t2 = e.touches[1];
-
-                    // 1. Handle Panning
-                    const currentX = (t1.clientX + t2.clientX) / 2;
-                    const currentY = (t1.clientY + t2.clientY) / 2;
-                    const deltaX = currentX - lastTouchRef.current.x;
-                    const deltaY = currentY - lastTouchRef.current.y;
-
-                    if (canvasRef.current) {
-                        canvasRef.current.scrollLeft -= deltaX;
-                        canvasRef.current.scrollTop -= deltaY;
-                    }
-                    lastTouchRef.current = { x: currentX, y: currentY };
-                }
-            };
-
-            const handleTouchEnd = () => {
-                lastTouchRef.current = null;
-            };
 
             const handlePointerMove = (e) => {
                 if (dragInfo) {
@@ -861,22 +971,30 @@
                                     </h3>
                                     <button onClick={() => deleteObj(selectedObj)} className="bg-red-50 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white"><Icon name="trash-2" size={18} /></button>
                                 </div>
-                                {selectedObj.type === 'comp' && components.find(c => c.id === selectedObj.id) && selectedSpec?.editable && (
-                                    <div className="space-y-2">
-                                        <input 
-                                            type="range" 
-                                            min={selectedSpec.min || 10} 
-                                            max={selectedSpec.max || 2000} 
-                                            step={selectedSpec.step || 5} 
-                                            value={components.find(c => c.id === selectedObj.id)[selectedSpec.editable]} 
-                                            onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? { ...c, [selectedSpec.editable]: parseInt(e.target.value) } : c))} 
-                                            className="w-full h-8 cursor-pointer accent-blue-600"
-                                        />
-                                        <div className="text-center font-black text-blue-600 text-2xl">
-                                            {components.find(c => c.id === selectedObj.id)[selectedSpec.editable]} {selectedSpec.unit}
-                                        </div>
+                                
+                                {/* UPDATED: Support for multiple edit fields */}
+                                {selectedObj.type === 'comp' && components.find(c => c.id === selectedObj.id) && selectedSpec?.editFields && (
+                                    <div className="space-y-4">
+                                        {selectedSpec.editFields.map((fieldSpec, idx) => (
+                                            <div key={idx} className="space-y-1">
+                                                <div className="flex justify-between text-xs text-slate-500 font-bold uppercase">
+                                                    <span>{fieldSpec.label}</span>
+                                                    <span>{components.find(c => c.id === selectedObj.id)[fieldSpec.field]} {fieldSpec.unit}</span>
+                                                </div>
+                                                <input 
+                                                    type="range" 
+                                                    min={fieldSpec.min} 
+                                                    max={fieldSpec.max} 
+                                                    step={fieldSpec.step} 
+                                                    value={components.find(c => c.id === selectedObj.id)[fieldSpec.field]} 
+                                                    onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? { ...c, [fieldSpec.field]: parseInt(e.target.value) } : c))} 
+                                                    className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-blue-600"
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
+
                                 {selectedObj.type === 'wire' && (
                                     <div className="text-center text-xs text-slate-500 space-y-1">
                                         <p>ลากจุดสีน้ำเงินเพื่อจัดสาย</p>
@@ -921,9 +1039,6 @@
                         {/* Scrollable Canvas Area */}
                         <div ref={canvasRef} 
                              className="w-full h-full overflow-auto relative bg-slate-100 touch-none"
-                             onTouchStart={handleTouchStart}
-                             onTouchMove={handleTouchMove}
-                             onTouchEnd={handleTouchEnd}
                         >
                             <div className="relative grid-bg" style={{width: 3000, height: 2000, transform: `scale(${zoom})`, transformOrigin: 'top left'}}>
                                 <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
@@ -1012,7 +1127,7 @@
                                             }} className={`relative cursor-move touch-none transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
                                                 {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
                                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
-                                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} />}
+                                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} watts={comp.watts || 100} />}
                                                     {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} isCharging={isCharging && comp.soc < 100} />}
                                                     {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
                                                     {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
@@ -1021,6 +1136,7 @@
                                                     {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
                                                     {comp.type === COMPONENT_TYPES.DC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="DC SPD" color="#991b1b" />}
                                                     {comp.type === COMPONENT_TYPES.AC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="AC SPD" color="#166534" />}
+                                                    {comp.type === COMPONENT_TYPES.COMBINER_BOX && <CombinerBoxVisual width={spec.width} height={spec.height} />}
                                                     {comp.type === COMPONENT_TYPES.GROUND_BAR && <GroundBarVisual width={spec.width} height={spec.height} />}
                                                     {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_POS && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.POS} label="จุดพ่วง (+)" />}
                                                     {comp.type === COMPONENT_TYPES.TERMINAL_BLOCK_NEG && <TerminalBlockVisual width={spec.width} height={spec.height} color={COLORS.NEG} label="จุดพ่วง (-)" />}
@@ -1067,6 +1183,5 @@
         }
     })(document,window.navigator,'standalone');
 </script>
-
 </body>
 </html>
