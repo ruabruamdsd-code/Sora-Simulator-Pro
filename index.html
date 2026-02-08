@@ -157,7 +157,11 @@
 
         // --- Visual Components ---
         const Terminal = ({ x, y, color, label, onPointerDown, isHovered }) => (
-            <g transform={`translate(${x}, ${y})`} onPointerDown={(e) => { e.stopPropagation(); onPointerDown(e); }} className="cursor-crosshair touch-none" style={{touchAction: 'none'}}>
+            <g transform={`translate(${x}, ${y})`} onPointerDown={(e) => { 
+                e.stopPropagation(); 
+                e.target.setPointerCapture(e.pointerId); // Prevent scroll
+                onPointerDown(e); 
+            }} className="cursor-crosshair touch-none" style={{touchAction: 'none'}}>
                 <circle r="25" fill="transparent" /> 
                 <g className={`transition-all duration-200 origin-center ${isHovered ? 'scale-150' : ''}`}>
                     <rect x="-7" y="-7" width="14" height="14" fill="#374151" rx="2" stroke={isHovered ? "#fbbf24" : "none"} strokeWidth={2} />
@@ -167,6 +171,7 @@
             </g>
         );
 
+        // ... [Visual Components: PVPanelVisual, BatteryVisual, etc. SAME AS BEFORE] ...
         const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
@@ -604,6 +609,10 @@
             }, [isRunning]);
 
             const handlePointerMove = (e) => {
+                if (dragInfo) {
+                    e.preventDefault(); // Prevent scrolling on touch
+                }
+                
                 const pos = getLocalPos(e);
                 
                 if(dragInfo?.type === 'comp') {
@@ -830,7 +839,7 @@
                                             <g key={w.id} className="pointer-events-auto">
                                                 {/* Thick transparent stroke for easier selection & double click */}
                                                 <path d={path} stroke="transparent" strokeWidth="20" fill="none" 
-                                                      className="cursor-pointer"
+                                                      className="cursor-pointer touch-none"
                                                       onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}
                                                       onDoubleClick={(e) => handleWireDoubleClick(w.id, e)}
                                                       onPointerDown={(e) => {
@@ -854,6 +863,7 @@
                                                         transform={`translate(${wp.x}, ${wp.y})`}
                                                         onPointerDown={(e) => { 
                                                             e.stopPropagation(); 
+                                                            e.target.setPointerCapture(e.pointerId); // Prevent scroll
                                                             const now = Date.now();
                                                             if (now - lastTapRef.current.time < 300 && lastTapRef.current.id === `wp-${wp.id}`) {
                                                                 handleWaypointDoubleClick(w.id, idx, e);
@@ -888,7 +898,13 @@
 
                                     return (
                                         <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
-                                            <div onPointerDown={(e) => { e.stopPropagation(); const pos = getLocalPos(e); setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }} className={`relative cursor-move touch-none transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
+                                            <div onPointerDown={(e) => { 
+                                                e.stopPropagation(); 
+                                                e.target.setPointerCapture(e.pointerId); // Prevent scroll
+                                                const pos = getLocalPos(e); 
+                                                setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); 
+                                                setSelectedObj({ type: 'comp', id: comp.id }); 
+                                            }} className={`relative cursor-move touch-none transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
                                                 {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
                                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
                                                     {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} />}
@@ -928,7 +944,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-		</script>
+			</script>
 	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
@@ -946,6 +962,5 @@
         }
     })(document,window.navigator,'standalone');
 </script>
-
 </body>
 </html>
