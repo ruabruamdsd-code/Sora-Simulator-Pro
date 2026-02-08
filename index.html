@@ -9,7 +9,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-180x180.png">
     <meta name="mobile-web-app-capable" content="yes">
-
     <!-- React & Babel CDNs -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,7 +21,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
         body { 
             font-family: 'Sarabun', sans-serif; 
-            touch-action: none; 
+            touch-action: none; /* Prevent browser zooming/panning globally mostly, handle in specific elements */
+            overscroll-behavior: none;
         }
         .grid-bg {
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
@@ -69,6 +69,11 @@
         }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Force touch action on interactive elements */
+        .touch-none {
+            touch-action: none !important;
+        }
     </style>
 </head>
 <body class="bg-slate-100 overflow-hidden no-select">
@@ -147,7 +152,7 @@
 
         // --- Visual Components ---
         const Terminal = ({ x, y, color, label, onPointerDown, isHovered }) => (
-            <g transform={`translate(${x}, ${y})`} onPointerDown={(e) => { e.stopPropagation(); onPointerDown(e); }} className="cursor-crosshair">
+            <g transform={`translate(${x}, ${y})`} onPointerDown={(e) => { e.stopPropagation(); onPointerDown(e); }} className="cursor-crosshair touch-none" style={{touchAction: 'none'}}>
                 <circle r="25" fill="transparent" /> 
                 <g className={`transition-all duration-200 origin-center ${isHovered ? 'scale-150' : ''}`}>
                     <rect x="-7" y="-7" width="14" height="14" fill="#374151" rx="2" stroke={isHovered ? "#fbbf24" : "none"} strokeWidth={2} />
@@ -771,6 +776,8 @@
                                                             e.stopPropagation(); 
                                                             setDragInfo({ type: 'wireHandle', id: w.id, baseX: (p1.x + p2.x) / 2, baseY: Math.max(p1.y, p2.y) }); 
                                                         }}
+                                                        style={{touchAction: 'none'}}
+                                                        className="touch-none"
                                                     >
                                                         <circle r="15" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-lg" />
                                                         <g transform="translate(-8, -8)" style={{pointerEvents: 'none'}}> 
@@ -792,7 +799,7 @@
 
                                     return (
                                         <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
-                                            <div onPointerDown={(e) => { e.stopPropagation(); const pos = getLocalPos(e); setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }} className={`relative cursor-move transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
+                                            <div onPointerDown={(e) => { e.stopPropagation(); const pos = getLocalPos(e); setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }} className={`relative cursor-move touch-none transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
                                                 {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
                                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
                                                     {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} />}
@@ -832,8 +839,7 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-	<script>
-    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
+	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
     (function(document,navigator,standalone) {
         if ((standalone in navigator) && navigator[standalone]) {
             var curnode, location=document.location, stop=/^(a|html)$/i;
