@@ -500,6 +500,7 @@
             const sunIntensityRef = useRef(sunIntensity);
             const lastTapRef = useRef({ time: 0, id: null });
             const lastTouchRef = useRef(null);
+            const toolbarRef = useRef(null);
 
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
             useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
@@ -1320,7 +1321,15 @@
                                 className="w-full mt-1 accent-yellow-400 cursor-pointer"
                             />
                         </div>
-                        <div className="flex-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar py-2">
+                        <div 
+                            ref={toolbarRef}
+                            onWheel={(e) => {
+                                if (toolbarRef.current) {
+                                    toolbarRef.current.scrollLeft += e.deltaY + e.deltaX;
+                                }
+                            }}
+                            className="flex-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar py-2"
+                        >
                             {Object.keys(SPECS).map(key => (
                                 <button key={key} onClick={() => addComponent(key)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-blue-600 text-white rounded-lg border border-slate-700 transition-all group shrink-0">
                                     <Icon name={SPECS[key].icon} size={14} className="group-hover:scale-110" />
