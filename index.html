@@ -126,7 +126,7 @@
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', 
             INV_3KW_1P: 'inv_3kw_1p', INV_5KW_1P: 'inv_5kw_1p', INV_10KW_1P: 'inv_10kw_1p',
             INV_5KW_3P: 'inv_5kw_3p', INV_10KW_3P: 'inv_10kw_3p',
-            BREAKER_DC: 'breaker_dc', FUSE: 'fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
+            BREAKER_DC: 'breaker_dc', FUSE: 'fuse', AC_FUSE: 'ac_fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
             AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', DC_WATT_METER: 'dc_watt_meter', AC_SOURCE: 'ac_source', 
             COMBINER_BOX: 'combiner_box', GROUND_BAR: 'ground_bar', 
             TERMINAL_BLOCK_POS: 'terminal_block_pos', TERMINAL_BLOCK_NEG: 'terminal_block_neg',
@@ -195,6 +195,7 @@
             [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 100, height: 90, terminals: [{id: 'pos', label: '+', x: 20, color: COLORS.POS}, {id: 'neg', label: '-', x: 40, color: COLORS.NEG}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
             [COMPONENT_TYPES.AC_SURGE]: { label: 'AC SPD', icon: 'shield-check', width: 100, height: 90, terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 40, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
             [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse', icon: 'shield-check', width: 60, height: 80, terminals: [{id: 'in', label: 'เข้า', x: 30, y: -5, labelPos: 'top', color: COLORS.POS}, {id: 'out', label: 'ออก', x: 30, y: 85, color: COLORS.POS}] },
+            [COMPONENT_TYPES.AC_FUSE]: { label: 'AC Fuse', icon: 'shield-check', width: 60, height: 80, terminals: [{id: 'in', label: 'เข้า', x: 30, y: -5, labelPos: 'top', color: COLORS.AC_L}, {id: 'out', label: 'ออก', x: 30, y: 85, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.GROUND_BAR]: { label: 'Ground Bar', icon: 'database', width: 160, height: 45, terminals: [{id: 'g1', x: 20, color: COLORS.G}, {id: 'g2', x: 50, color: COLORS.G}, {id: 'g3', x: 80, color: COLORS.G}, {id: 'g4', x: 110, color: COLORS.G}, {id: 'g5', x: 140, color: COLORS.G}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_POS]: { label: 'จุดพ่วง (+)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.POS}, {id: 't2', x: 40, color: COLORS.POS}, {id: 't3', x: 60, color: COLORS.POS}, {id: 't4', x: 80, color: COLORS.POS}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_NEG]: { label: 'จุดพ่วง (-)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.NEG}, {id: 't2', x: 40, color: COLORS.NEG}, {id: 't3', x: 60, color: COLORS.NEG}, {id: 't4', x: 80, color: COLORS.NEG}] },
@@ -360,6 +361,7 @@
         const BulbVisual = ({ width, height, isPowered, label="BULB" }) => (<g><path d={`M ${width/2-10} ${height-10} L ${width/2+10} ${height-10} L ${width/2+15} ${height-30} L ${width/2-15} ${height-30} Z`} fill="#94a3b8" /><circle cx={width/2} cy={height/2-5} r="25" fill={isPowered ? "#fef08a" : "#f1f5f9"} stroke={isPowered ? "#facc15" : "#cbd5e1"} strokeWidth={2} />{isPowered && <circle cx={width/2} cy={height/2-5} r="32" fill="none" stroke="#fef08a" strokeWidth="2" opacity="0.5" className="animate-pulse" />}</g>);
         const SocketVisual = ({ width, height, isPowered }) => (<g><rect x="0" y="0" width={width} height={height} rx="8" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" /><circle cx={width*0.3} cy={height/2} r="5" fill="#1e293b" /><circle cx={width*0.7} cy={height/2} r="5" fill="#1e293b" /><circle cx={width/2} cy={height*0.75} r="4" fill="#1e293b" />{isPowered && <circle cx={width-15} cy="15" r="3" fill="#22c55e" className="animate-pulse" />}<text x={width/2} y={height - 10} textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="bold">AC SOCKET</text></g>);
         const FuseVisual = ({ width, height }) => (<g><rect x="15" y="10" width={width-30} height={height-20} rx="4" fill="#f8fafc" stroke="#64748b" strokeWidth="2" /><rect x="22" y="25" width={width-44} height={height-50} fill="#fef3c7" stroke="#d97706" /><line x1={width/2} y1="25" x2={width/2} y2={height-25} stroke="#b45309" strokeWidth="1" strokeDasharray="2 1" /><text x={width/2} y={height/2 + 3} textAnchor="middle" fill="#475569" fontSize="8" fontWeight="bold" transform={`rotate(-90 ${width/2} ${height/2})`}>DC FUSE</text></g>);
+        const AcFuseVisual = ({ width, height }) => (<g><rect x="15" y="10" width={width-30} height={height-20} rx="4" fill="#f8fafc" stroke="#64748b" strokeWidth="2" /><rect x="22" y="25" width={width-44} height={height-50} fill="#f1f5f9" stroke="#94a3b8" /><line x1={width/2} y1="25" x2={width/2} y2={height-25} stroke="#475569" strokeWidth="1" strokeDasharray="2 1" /><text x={width/2} y={height/2 + 3} textAnchor="middle" fill="#475569" fontSize="8" fontWeight="bold" transform={`rotate(-90 ${width/2} ${height/2})`}>AC FUSE</text></g>);
         const SurgeVisual = ({ width, height, label, color }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill={color} stroke="#1e293b" strokeWidth="2" /><rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="white" opacity="0.2" /><text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{label}</text></g>);
         const CombinerBoxVisual = ({ width, height }) => (<g><rect x="0" y="0" width={width} height={height} rx="6" fill="#e2e8f0" stroke="#334155" strokeWidth="2" /><rect x="10" y="10" width={width-20} height={height-20} rx="4" fill="#f8fafc" stroke="#94a3b8" /><path d={`M10 ${height/2} L${width-10} ${height/2}`} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2"/><text x={width/2} y="30" textAnchor="middle" fill="#475569" fontSize="11" fontWeight="bold">COMBINER BOX</text><rect x={20} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/><rect x={width-60} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/><text x={40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">INPUT</text><text x={width-40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">OUTPUT</text></g>);
         const AcMeterVisual = ({ width, height, volts, watts }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#0f172a" strokeWidth="2" /><rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" /><text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text><text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/volts).toFixed(2) : "0.00"} A</text><text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text><text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text><text x={width/2} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">AC ENERGY METER</text></g>);
@@ -498,7 +500,7 @@
                             const [cId, tName] = termId.split('_');
                             const comp = components.find(c => c.id === cId);
                             if (!comp) return;
-                            if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.FUSE].includes(comp.type)) {
+                            if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.AC_FUSE].includes(comp.type)) {
                                 if (comp.isOn !== false) {
                                     let otherTerm = tName.startsWith('in') ? tName.replace('in', 'out') : tName.startsWith('out') ? tName.replace('out', 'in') : null;
                                     if (otherTerm) {
@@ -561,7 +563,7 @@
                 // Propagate 
                 for(let pass=0; pass<3; pass++) {
                     components.forEach(c => {
-                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.COMBINER_BOX].includes(c.type)) {
+                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.AC_FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.COMBINER_BOX].includes(c.type)) {
                             if(c.type === COMPONENT_TYPES.COMBINER_BOX) {
                                 [['in1_pos', 'in2_pos', 'out_pos'], ['in1_neg', 'in2_neg', 'out_neg']].forEach(group => {
                                     const nets = group.map(id => getNet(`${c.id}_${id}`)).filter(n => n);
@@ -574,7 +576,7 @@
                             } else {
                                 let pairs = [];
                                 if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
-                                else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
+                                else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.AC_FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
                                 else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
                                 else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
 
@@ -989,6 +991,7 @@
                                                     {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
                                                     {comp.type.startsWith('inv_') && <AdvancedInverterVisual width={spec.width} height={spec.height} label={spec.label} capacityKW={spec.capacityKW} isPowered={state.isPowered} isCharging={state.isCharging} isOverloaded={state.isOverloaded} is3Phase={comp.type.includes('_3p')} />}
                                                     {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
+                                                    {comp.type === COMPONENT_TYPES.AC_FUSE && <AcFuseVisual width={spec.width} height={spec.height} />}
                                                     {comp.type === COMPONENT_TYPES.MOTOR_AC && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label="AC MOTOR" />}
                                                     {comp.type === COMPONENT_TYPES.MOTOR_DC && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label="DC MOTOR" />}
                                                     {(comp.type === COMPONENT_TYPES.BULB_AC || comp.type === COMPONENT_TYPES.BULB_DC) && <BulbVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label={spec.label.split(' ')[0]} />}
