@@ -36,7 +36,7 @@
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 24px; /* Bigger for touch */
+            width: 24px;
             height: 24px;
             background: #2563eb;
             cursor: pointer;
@@ -60,10 +60,18 @@
         .short-circuit-alert {
             animation: flashRed 0.5s infinite;
         }
+        .overload-alert {
+            animation: pulseRedText 0.5s infinite;
+        }
         @keyframes flashRed {
             0% { background-color: rgba(239, 68, 68, 0); }
             50% { background-color: rgba(239, 68, 68, 0.3); }
             100% { background-color: rgba(239, 68, 68, 0); }
+        }
+        @keyframes pulseRedText {
+            0% { fill: #ef4444; }
+            50% { fill: #7f1d1d; }
+            100% { fill: #ef4444; }
         }
         .tooltip-probe {
             position: absolute;
@@ -79,37 +87,16 @@
             white-space: nowrap;
             border: 2px solid #fbbf24;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            transform: translate(20px, -50px); /* Move up to not block finger */
+            transform: translate(20px, -50px);
         }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #94a3b8; 
-            border-radius: 6px;
-            border: 3px solid #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b; 
-        }
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 3px solid #f1f5f9; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Force touch action none to handle scrolling manually */
-        .touch-none {
-            touch-action: none !important;
-        }
-        
-        /* Specific Fix for Range Inputs on Touch Devices */
-        input[type="range"] {
-            touch-action: pan-x; 
-        }
+        .touch-none { touch-action: none !important; }
+        input[type="range"] { touch-action: pan-x; }
     </style>
 </head>
 <body class="bg-slate-100 overflow-hidden no-select">
@@ -123,12 +110,7 @@
             useEffect(() => {
                 if (iconRef.current) {
                     lucide.createIcons({
-                        attrs: {
-                            class: className,
-                            width: size,
-                            height: size,
-                            'stroke-width': strokeWidth
-                        },
+                        attrs: { class: className, width: size, height: size, 'stroke-width': strokeWidth },
                         nameAttr: 'data-lucide'
                     });
                 }
@@ -141,118 +123,126 @@
 
         // --- Configuration ---
         const COMPONENT_TYPES = {
-            PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', INVERTER: 'inverter',
+            PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', 
+            INV_3KW_1P: 'inv_3kw_1p', INV_5KW_1P: 'inv_5kw_1p', INV_10KW_1P: 'inv_10kw_1p',
+            INV_5KW_3P: 'inv_5kw_3p', INV_10KW_3P: 'inv_10kw_3p',
             BREAKER_DC: 'breaker_dc', FUSE: 'fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
             AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', DC_WATT_METER: 'dc_watt_meter', AC_SOURCE: 'ac_source', 
-            COMBINER_BOX: 'combiner_box',
-            GROUND_BAR: 'ground_bar', TERMINAL_BLOCK_POS: 'terminal_block_pos', TERMINAL_BLOCK_NEG: 'terminal_block_neg',
+            COMBINER_BOX: 'combiner_box', GROUND_BAR: 'ground_bar', 
+            TERMINAL_BLOCK_POS: 'terminal_block_pos', TERMINAL_BLOCK_NEG: 'terminal_block_neg',
             TERMINAL_BLOCK_AC_L: 'terminal_block_ac_l', TERMINAL_BLOCK_AC_N: 'terminal_block_ac_n',
             CONSUMER_MAIN: 'consumer_main', CONSUMER_SUB: 'consumer_sub',
-            SOCKET: 'socket', BULB: 'bulb', MOTOR: 'motor'
+            SOCKET_AC: 'socket_ac', BULB_AC: 'bulb_ac', BULB_DC: 'bulb_dc', MOTOR_AC: 'motor_ac', MOTOR_DC: 'motor_dc'
         };
 
         const COLORS = {
-            POS: '#ef4444', // Red
-            NEG: '#2563eb', // Blue
-            AC_L: '#854d0e', // Brown
-            AC_N: '#3b82f6', // Standard Blue
-            G: '#16a34a'    // Green
+            POS: '#ef4444', NEG: '#2563eb', AC_L: '#854d0e', AC_N: '#3b82f6', G: '#16a34a',
+            AC_L1: '#854d0e', AC_L2: '#000000', AC_L3: '#4b5563'
         };
 
         const WIRE_COLORS = [
-            { hex: '#ef4444', label: 'แดง' },
-            { hex: '#2563eb', label: 'น้ำเงิน' },
-            { hex: '#000000', label: 'ดำ' },
-            { hex: '#ffffff', label: 'ขาว' },
-            { hex: '#854d0e', label: 'น้ำตาล' },
-            { hex: '#3b82f6', label: 'ฟ้า' },
-            { hex: '#16a34a', label: 'เขียว' },
-            { hex: '#eab308', label: 'เหลือง' },
+            { hex: '#ef4444', label: 'แดง' }, { hex: '#2563eb', label: 'น้ำเงิน' },
+            { hex: '#000000', label: 'ดำ' }, { hex: '#ffffff', label: 'ขาว' },
+            { hex: '#854d0e', label: 'น้ำตาล' }, { hex: '#3b82f6', label: 'ฟ้า' },
+            { hex: '#16a34a', label: 'เขียว' }, { hex: '#eab308', label: 'เหลือง' },
         ];
 
-        // Adjusted Widths and X-offsets to be multiples of 20 for perfect grid alignment
         const SPECS = {
             [COMPONENT_TYPES.PANEL]: { 
                 label: 'แผง PV', icon: 'sun', width: 120, height: 160, 
                 terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], 
                 editFields: [
-                    { field: 'maxVoltage', label: 'แรงดัน (Voc)', unit: 'V', min: 12, max: 100, step: 1 },
-                    { field: 'watts', label: 'กำลังไฟ (Pmax)', unit: 'W', min: 50, max: 600, step: 10 }
+                    { field: 'maxVoltage', label: 'แรงดัน (Voc)', unit: 'V', min: 12, max: 1000, step: 10 },
+                    { field: 'watts', label: 'กำลังไฟ (W)', unit: 'W', min: 100, max: 20000, step: 100 }
                 ]
             },
             [COMPONENT_TYPES.BATTERY]: { 
                 label: 'แบตเตอรี่', icon: 'battery', width: 120, height: 130, 
                 terminals: [{id: 'pos', x: 40, color: COLORS.POS}, {id: 'neg', x: 80, color: COLORS.NEG}], 
                 editFields: [
-                    { field: 'capacity', label: 'ความจุ', unit: 'Ah', min: 5, max: 500, step: 5 }
+                    { field: 'capacity', label: 'ความจุ', unit: 'Ah', min: 5, max: 1000, step: 5 },
+                    { field: 'soc', label: 'ปริมาณประจุ (SOC)', unit: '%', min: 0, max: 100, step: 1 }
                 ]
             },
             [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 200, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 80, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 100, color: COLORS.NEG}, {id: 'load_pos', label: 'LOAD+', x: 140, color: COLORS.POS}, {id: 'load_neg', label: 'LOAD-', x: 160, color: COLORS.NEG}] },
-            [COMPONENT_TYPES.INVERTER]: { label: 'อินเวอร์เตอร์', icon: 'activity', width: 160, height: 110, terminals: [{id: 'dc_pos', label: 'DC+', x: 40, color: COLORS.POS}, {id: 'dc_neg', label: 'DC-', x: 60, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 100, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 120, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_3KW_1P]: { 
+                label: 'อินเวอร์เตอร์ 3kW (1-Phase)', icon: 'cpu', width: 160, height: 130, capacityKW: 3,
+                terminals: [{id: 'pv1_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 70, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 90, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 120, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 140, color: COLORS.AC_N}]
+            },
+            [COMPONENT_TYPES.INV_5KW_1P]: { 
+                label: 'อินเวอร์เตอร์ 5kW (1-Phase)', icon: 'cpu', width: 200, height: 130, capacityKW: 5,
+                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}]
+            },
+            [COMPONENT_TYPES.INV_10KW_1P]: { 
+                label: 'อินเวอร์เตอร์ 10kW (1-Phase)', icon: 'cpu', width: 200, height: 130, capacityKW: 10,
+                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}]
+            },
+            [COMPONENT_TYPES.INV_5KW_3P]: { 
+                label: 'อินเวอร์เตอร์ 5kW (3-Phase)', icon: 'cpu', width: 240, height: 130, capacityKW: 5,
+                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 160, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 180, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 200, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 220, color: COLORS.AC_N}]
+            },
+            [COMPONENT_TYPES.INV_10KW_3P]: { 
+                label: 'อินเวอร์เตอร์ 10kW (3-Phase)', icon: 'cpu', width: 240, height: 130, capacityKW: 10,
+                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 160, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 180, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 200, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 220, color: COLORS.AC_N}]
+            },
             [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 40, color: COLORS.POS}, {id: 'in_2', label: 'เข้า', x: 60, color: COLORS.NEG}, {id: 'out_1', label: 'ออก', x: 80, color: COLORS.POS}, {id: 'out_2', label: 'ออก', x: 100, color: COLORS.NEG}] },
             [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 40, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 140, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 20, color: COLORS.POS}, {id: 'in_neg', label: 'IN-', x: 40, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 80, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 100, color: COLORS.NEG}] },
             [COMPONENT_TYPES.AC_BREAKER]: { label: 'AC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 40, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 60, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
-            [COMPONENT_TYPES.COMBINER_BOX]: { label: 'Combiner Box', icon: 'box', width: 140, height: 140, terminals: [
-                {id: 'in1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'in1_neg', label: 'PV1-', x: 40, color: COLORS.NEG},
-                {id: 'in2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'in2_neg', label: 'PV2-', x: 80, color: COLORS.NEG},
-                {id: 'out_pos', label: 'OUT+', x: 100, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 120, color: COLORS.NEG}
-            ] },
+            [COMPONENT_TYPES.COMBINER_BOX]: { label: 'Combiner Box', icon: 'box', width: 140, height: 140, terminals: [ {id: 'in1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'in1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'in2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'in2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 100, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 120, color: COLORS.NEG} ] },
             [COMPONENT_TYPES.CONSUMER_MAIN]: { label: 'Main Breaker', icon: 'shield', width: 120, height: 110, terminals: [{id: 'in_l', label: 'L-เข้า', x: 40, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 60, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.CONSUMER_SUB]: { label: 'Sub Breaker', icon: 'toggle-right', width: 80, height: 100, terminals: [{id: 'in', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'out', label: 'L-ออก', x: 60, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.DC_SURGE]: { label: 'DC SPD', icon: 'shield-alert', width: 100, height: 90, terminals: [{id: 'pos', label: '+', x: 20, color: COLORS.POS}, {id: 'neg', label: '-', x: 40, color: COLORS.NEG}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
             [COMPONENT_TYPES.AC_SURGE]: { label: 'AC SPD', icon: 'shield-check', width: 100, height: 90, terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 40, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
-            [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse', icon: 'shield-check', width: 80, height: 60, terminals: [{id: 'in', label: 'เข้า', x: 20, color: COLORS.POS}, {id: 'out', label: 'ออก', x: 60, color: COLORS.POS}] },
+            [COMPONENT_TYPES.FUSE]: { label: 'DC Fuse', icon: 'shield-check', width: 60, height: 80, terminals: [{id: 'in', label: 'เข้า', x: 30, y: -5, labelPos: 'top', color: COLORS.POS}, {id: 'out', label: 'ออก', x: 30, y: 85, color: COLORS.POS}] },
             [COMPONENT_TYPES.GROUND_BAR]: { label: 'Ground Bar', icon: 'database', width: 160, height: 45, terminals: [{id: 'g1', x: 20, color: COLORS.G}, {id: 'g2', x: 50, color: COLORS.G}, {id: 'g3', x: 80, color: COLORS.G}, {id: 'g4', x: 110, color: COLORS.G}, {id: 'g5', x: 140, color: COLORS.G}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_POS]: { label: 'จุดพ่วง (+)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.POS}, {id: 't2', x: 40, color: COLORS.POS}, {id: 't3', x: 60, color: COLORS.POS}, {id: 't4', x: 80, color: COLORS.POS}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_NEG]: { label: 'จุดพ่วง (-)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.NEG}, {id: 't2', x: 40, color: COLORS.NEG}, {id: 't3', x: 60, color: COLORS.NEG}, {id: 't4', x: 80, color: COLORS.NEG}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_L]: { label: 'จุดพ่วง AC (L)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_L}, {id: 't2', x: 40, color: COLORS.AC_L}, {id: 't3', x: 60, color: COLORS.AC_L}, {id: 't4', x: 80, color: COLORS.AC_L}] },
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_N]: { label: 'จุดพ่วง AC (N)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_N}, {id: 't2', x: 40, color: COLORS.AC_N}, {id: 't3', x: 60, color: COLORS.AC_N}, {id: 't4', x: 80, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC Source', icon: 'zap', width: 120, height: 110, terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
-            [COMPONENT_TYPES.BULB]: { 
-                label: 'หลอดไฟ', icon: 'lightbulb', width: 100, height: 110, 
-                terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], 
-                editFields: [
-                    { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 5, max: 200, step: 5 }
-                ]
-            },
-            [COMPONENT_TYPES.MOTOR]: { 
-                label: 'มอเตอร์', icon: 'fan', width: 120, height: 110, 
-                terminals: [{id: 'l', label: '+', x: 40, color: COLORS.POS}, {id: 'n', label: '-', x: 80, color: COLORS.NEG}], 
-                editFields: [
-                    { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 10, max: 500, step: 10 }
-                ]
-            },
-            [COMPONENT_TYPES.SOCKET]: { 
-                label: 'เต้ารับ', icon: 'power', width: 80, height: 80, 
+            
+            // --- โหลดไฟฟ้าแยกประเภท AC / DC ---
+            [COMPONENT_TYPES.SOCKET_AC]: { 
+                label: 'เต้ารับ AC (220V)', icon: 'power', width: 80, height: 80, 
                 terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], 
-                editFields: [
-                    { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 100, max: 2000, step: 50 }
-                ]
+                editFields: [ { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 100, max: 5000, step: 100 } ]
+            },
+            [COMPONENT_TYPES.BULB_AC]: { 
+                label: 'หลอดไฟ AC (220V)', icon: 'lightbulb', width: 100, height: 110, 
+                terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], 
+                editFields: [ { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 5, max: 200, step: 5 } ]
+            },
+            [COMPONENT_TYPES.BULB_DC]: { 
+                label: 'หลอดไฟ DC (12/24V)', icon: 'lightbulb', width: 100, height: 110, 
+                terminals: [{id: 'pos', label: '+', x: 40, color: COLORS.POS}, {id: 'neg', label: '-', x: 60, color: COLORS.NEG}], 
+                editFields: [ { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 5, max: 200, step: 5 } ]
+            },
+            [COMPONENT_TYPES.MOTOR_AC]: { 
+                label: 'มอเตอร์ AC (220V)', icon: 'fan', width: 120, height: 110, 
+                terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 80, color: COLORS.AC_N}], 
+                editFields: [ { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 10, max: 2000, step: 50 } ]
+            },
+            [COMPONENT_TYPES.MOTOR_DC]: { 
+                label: 'มอเตอร์ DC (12/24V)', icon: 'fan', width: 120, height: 110, 
+                terminals: [{id: 'pos', label: '+', x: 40, color: COLORS.POS}, {id: 'neg', label: '-', x: 80, color: COLORS.NEG}], 
+                editFields: [ { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 10, max: 2000, step: 50 } ]
             },
         };
 
         const getPolylinePath = (p1, waypoints, p2) => {
             let path = `M ${p1.x} ${p1.y} `;
-            waypoints.forEach(wp => {
-                path += `L ${wp.x} ${wp.y} `;
-            });
+            waypoints.forEach(wp => { path += `L ${wp.x} ${wp.y} `; });
             path += `L ${p2.x} ${p2.y}`;
             return path;
         };
 
         // --- Visual Components ---
-        const Terminal = ({ x, y, color, label, onPointerDown, isHovered, onHover, onLeave, isProbeMode }) => (
+        const Terminal = ({ x, y, color, label, onPointerDown, isHovered, onHover, onLeave, isProbeMode, isTop }) => (
             <g transform={`translate(${x}, ${y})`} 
-               onPointerDown={(e) => { 
-                   e.stopPropagation(); 
-                   e.target.setPointerCapture(e.pointerId); // Prevent scroll
-                   onPointerDown(e); 
-               }} 
-               onPointerEnter={onHover}
-               onPointerLeave={onLeave}
+               onPointerDown={(e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); onPointerDown(e); }} 
+               onPointerEnter={onHover} onPointerLeave={onLeave}
                className="cursor-crosshair touch-none" style={{touchAction: 'none'}}>
-                {/* Increased hit area for touch */}
                 <circle r="30" fill="transparent" /> 
                 <g className={`transition-all duration-200 origin-center ${isHovered ? 'scale-150' : ''}`}>
                     <rect x="-7" y="-7" width="14" height="14" fill="#374151" rx="2" stroke={isHovered ? "#fbbf24" : "none"} strokeWidth={2} />
@@ -261,30 +251,34 @@
                         <circle r="12" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="3 3" className="animate-spin-fast" />
                     )}
                 </g>
-                {label && <text x="0" y={isHovered ? 28 : 22} textAnchor="middle" fill={isHovered ? "#000" : "#4b5563"} fontSize="8" fontWeight="bold" className="pointer-events-none uppercase">{label}</text>}
+                {label && <text x="0" y={isTop ? (isHovered ? -20 : -15) : (isHovered ? 28 : 22)} textAnchor="middle" fill={isHovered ? "#000" : "#4b5563"} fontSize="8" fontWeight="bold" className="pointer-events-none uppercase">{label}</text>}
             </g>
         );
 
-        const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage, watts }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
-                <g stroke="rgba(255,255,255,0.4)" strokeWidth="1">
-                    <line x1="0" y1={height/4} x2={width} y2={height/4} /><line x1="0" y1={height/2} x2={width} y2={height/2} />
-                    <line x1="0" y1={height*0.75} x2={width} y2={height*0.75} /><line x1={width/2} y1="0" x2={width/2} y2={height} />
+        const PVPanelVisual = ({ width, height, sunIntensity, maxVoltage, watts }) => {
+            const displayPower = watts >= 1000 ? (watts/1000).toFixed(1) + 'kW' : watts + 'W';
+            return (
+                <g>
+                    <rect x="0" y="0" width={width} height={height} fill={`rgb(30, 58, ${180 + (sunIntensity/2)})`} stroke="#cbd5e1" strokeWidth="2" />
+                    <g stroke="rgba(255,255,255,0.4)" strokeWidth="1">
+                        <line x1="0" y1={height/4} x2={width} y2={height/4} /><line x1="0" y1={height/2} x2={width} y2={height/2} />
+                        <line x1="0" y1={height*0.75} x2={width} y2={height*0.75} /><line x1={width/2} y1="0" x2={width/2} y2={height} />
+                    </g>
+                    <text x={width/2} y={height/2 - 10} textAnchor="middle" fill="white" opacity="0.9" fontSize="12" fontWeight="bold">PV {maxVoltage}V</text>
+                    <text x={width/2} y={height/2 + 10} textAnchor="middle" fill="#fef08a" opacity="1" fontSize="13" fontWeight="bold">{displayPower}</text>
                 </g>
-                <text x={width/2} y={height/2 - 10} textAnchor="middle" fill="white" opacity="0.9" fontSize="12" fontWeight="bold">PV {maxVoltage}V</text>
-                <text x={width/2} y={height/2 + 10} textAnchor="middle" fill="white" opacity="0.9" fontSize="11" fontWeight="bold">{watts}W</text>
-            </g>
-        );
+            );
+        };
 
-        const BatteryVisual = ({ width, height, soc = 75, isCharging }) => (
+        const BatteryVisual = ({ width, height, soc = 75, capacity = 100, isCharging }) => (
             <g>
                 <rect x="5" y="10" width={width-10} height={height-10} rx="6" fill="#1f2937" stroke="#374151" strokeWidth="2" />
                 <rect x="20" y="0" width="20" height="12" fill="#dc2626" rx="2" />
                 <rect x={width-40} y="0" width="20" height="12" fill="#111827" rx="2" />
                 <rect x="15" y="45" width={width-30} height={55} rx="3" fill="#374151" stroke="#4b5563" />
                 <rect x="18" y="48" width={(width-36)*(soc/100)} height={49} rx="2" fill={soc > 20 ? "#22c55e" : "#ef4444"} opacity="0.9" />
-                <text x={width/2} y="78" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">{Math.round(soc)}%</text>
+                <text x={width/2} y="72" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">{Math.round(soc)}%</text>
+                <text x={width/2} y="90" textAnchor="middle" fill="#cbd5e1" fontSize="10" fontWeight="bold">{capacity} Ah</text>
                 {isCharging && (
                     <g transform={`translate(${width/2 - 12}, 25)`}>
                          <circle r="12" fill="#fef08a" stroke="#ca8a04" strokeWidth="1" className="animate-pulse" />
@@ -306,89 +300,37 @@
             </g>
         );
 
-        const FuseVisual = ({ width, height }) => (
+        const AdvancedInverterVisual = ({ width, height, label, capacityKW, isPowered, isCharging, isOverloaded, is3Phase }) => (
             <g>
-                <rect x="10" y="20" width={width-20} height={20} rx="4" fill="#f8fafc" stroke="#64748b" strokeWidth="2" />
-                <rect x="25" y="23" width={width-50} height="14" fill="#fef3c7" stroke="#d97706" />
-                <line x1="25" y1="30" x2={width-25} y2="30" stroke="#b45309" strokeWidth="1" strokeDasharray="2 1" />
-                <text x={width/2} y="15" textAnchor="middle" fill="#475569" fontSize="8" fontWeight="bold">DC FUSE</text>
+                <rect x="0" y="0" width={width} height={height} rx="8" fill={isOverloaded ? "#fef2f2" : "#f8fafc"} stroke={isOverloaded ? "#ef4444" : "#3b82f6"} strokeWidth="2" />
+                <rect x="15" y="20" width={width-30} height="50" rx="4" fill="#0f172a" />
+                
+                {isOverloaded ? (
+                     <text x={width/2} y="50" textAnchor="middle" fontSize="16" fontWeight="bold" fontFamily="monospace" className="overload-alert">OVERLOAD!</text>
+                ) : (
+                    <g>
+                        <text x={width/2} y="45" textAnchor="middle" fill={isPowered ? "#4ade80" : "#475569"} fontSize="12" fontWeight="bold" fontFamily="monospace">
+                            {isPowered ? "RUNNING" : "STANDBY"}
+                        </text>
+                        {isCharging && <text x={width/2} y="60" textAnchor="middle" fill="#facc15" fontSize="10" fontFamily="monospace">BAT CHARGING</text>}
+                    </g>
+                )}
+
+                <text x={width/2} y="95" textAnchor="middle" fill={isOverloaded ? "#ef4444" : "#1d4ed8"} fontSize="11" fontWeight="bold">{label}</text>
+                
+                <circle cx={25} cy={105} r="3" fill={isPowered ? "#22c55e" : "#cbd5e1"} />
+                <text x={25} y={115} textAnchor="middle" fill="#475569" fontSize="6" fontWeight="bold">PWR</text>
+                
+                <circle cx={45} cy={105} r="3" fill={isCharging ? "#eab308" : "#cbd5e1"} />
+                <text x={45} y={115} textAnchor="middle" fill="#475569" fontSize="6" fontWeight="bold">CHG</text>
+
+                {is3Phase && (
+                     <text x={width - 25} y={115} textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold">3-PHASE</text>
+                )}
             </g>
         );
 
-        const MotorVisual = ({ width, height, isPowered }) => (
-            <g>
-                <rect x="10" y="20" width={width-20} height={height-40} rx="8" fill="#4b5563" stroke="#374151" strokeWidth="2" />
-                <circle cx={width/2} cy={height/2} r="30" fill="#374151" stroke="#94a3b8" strokeWidth="2" />
-                <g transform={`translate(${width/2}, ${height/2})`}>
-                    <path d="M-15 0 L15 0 M0 -15 L0 15" stroke="white" strokeWidth="3" className={isPowered ? "animate-spin-fast origin-center" : ""} />
-                </g>
-                <text x={width/2} y="15" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="bold">MOTOR</text>
-            </g>
-        );
-
-        const BulbVisual = ({ width, height, isPowered }) => (
-            <g>
-                <path d={`M ${width/2-10} ${height-10} L ${width/2+10} ${height-10} L ${width/2+15} ${height-30} L ${width/2-15} ${height-30} Z`} fill="#94a3b8" />
-                <circle cx={width/2} cy={height/2-5} r="25" fill={isPowered ? "#fef08a" : "#f1f5f9"} stroke={isPowered ? "#facc15" : "#cbd5e1"} strokeWidth={2} />
-                {isPowered && <circle cx={width/2} cy={height/2-5} r="32" fill="none" stroke="#fef08a" strokeWidth="2" opacity="0.5" className="animate-pulse" />}
-            </g>
-        );
-
-        const SocketVisual = ({ width, height, isPowered }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="8" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-                <circle cx={width*0.3} cy={height/2} r="5" fill="#1e293b" />
-                <circle cx={width*0.7} cy={height/2} r="5" fill="#1e293b" />
-                <circle cx={width/2} cy={height*0.75} r="4" fill="#1e293b" />
-                {isPowered && <circle cx={width-15} cy="15" r="3" fill="#22c55e" className="animate-pulse" />}
-            </g>
-        );
-
-        const SurgeVisual = ({ width, height, label, color }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill={color} stroke="#1e293b" strokeWidth="2" />
-                <rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="white" opacity="0.2" />
-                <text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{label}</text>
-            </g>
-        );
-
-        const CombinerBoxVisual = ({ width, height }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="6" fill="#e2e8f0" stroke="#334155" strokeWidth="2" />
-                <rect x="10" y="10" width={width-20} height={height-20} rx="4" fill="#f8fafc" stroke="#94a3b8" />
-                <path d={`M10 ${height/2} L${width-10} ${height/2}`} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2"/>
-                <text x={width/2} y="30" textAnchor="middle" fill="#475569" fontSize="11" fontWeight="bold">COMBINER BOX</text>
-                <rect x={20} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
-                <rect x={width-60} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
-                <text x={40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">INPUT</text>
-                <text x={width-40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">OUTPUT</text>
-            </g>
-        );
-
-        const AcMeterVisual = ({ width, height, volts, watts }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#0f172a" strokeWidth="2" />
-                <rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" />
-                <text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text>
-                <text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/volts).toFixed(2) : "0.00"} A</text>
-                <text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text>
-                <text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text>
-                <text x={width/2} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">AC ENERGY METER</text>
-            </g>
-        );
-
-        const DcWattMeterVisual = ({ width, height, volts, watts }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#334155" strokeWidth="2" />
-                <rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" />
-                <text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text>
-                <text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/Math.max(volts,1)).toFixed(2) : "0.00"} A</text>
-                <text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text>
-                <text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text>
-                <text x={width/2} y={height-10} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">DC POWER METER</text>
-            </g>
-        );
-
+        // ... (Keep other Visuals like BoxVisual for AC_Source, Fuse, Motor, Bulb, Socket, Surge, CombinerBox, AcMeter, DcWattMeter, ConsumerMain, ConsumerSub, GroundBar, TerminalBlock)
         const BoxVisual = ({ width, height, label, isPowered }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} rx="6" fill="white" stroke="#374151" strokeWidth="2" />
@@ -401,84 +343,32 @@
         const BreakerVisual = ({ width, height, label, isOn, onToggle, isInputPowered }) => (
              <g>
                 <rect x="0" y="0" width={width} height={height} rx="6" fill="white" stroke="#374151" strokeWidth="2" />
-                <rect x="0" y="0" width={width} height="30" rx="6" fill="#f1f5f9" />
+                <rect x="0" y="0" width={width} height={height} rx="6" fill="#f1f5f9" />
                 <text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="11" fontWeight="bold">{label}</text>
-                
-                {/* Input Power Indicator LED */}
                 <circle cx={15} cy={15} r="4" fill={isInputPowered ? "#f97316" : "#cbd5e1"} stroke={isInputPowered ? "#c2410c" : "#94a3b8"} strokeWidth="1" />
-                <title>ไฟเข้า (Input Power)</title>
-
-                {/* Switch Area */}
-                <g transform={`translate(${width/2 - 20}, 45)`} 
-                   onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }} 
-                   className="cursor-pointer"
-                   onPointerDown={(e) => e.stopPropagation()}
-                >
+                <g transform={`translate(${width/2 - 20}, 45)`} onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }} className="cursor-pointer" onPointerDown={(e) => e.stopPropagation()}>
                     <rect x="0" y="0" width="40" height="50" rx="4" fill="#e2e8f0" stroke="#94a3b8" />
                     <rect x="5" y="5" width="30" height="40" rx="2" fill="#cbd5e1" />
-                    {/* Toggle Handle */}
                     <rect x="5" y={isOn ? 5 : 25} width="30" height="20" rx="2" fill={isOn ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="2" />
                 </g>
                 <text x={width/2} y={height - 5} textAnchor="middle" fill={isOn ? "#16a34a" : "#ef4444"} fontSize="10" fontWeight="bold">{isOn ? "ON" : "OFF"}</text>
             </g>
         );
 
-        const ConsumerMainVisual = ({ width, height, isOn, onToggle, isInputPowered }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" />
-                <rect x="10" y="30" width={width-20} height="50" rx="2" fill="#334155" />
-                
-                 {/* Input LED */}
-                 <circle cx={20} cy={15} r="4" fill={isInputPowered ? "#f97316" : "#475569"} stroke="white" strokeWidth="1" />
+        // --- Load Visuals ---
+        const MotorVisual = ({ width, height, isPowered, label="MOTOR" }) => (<g><rect x="10" y="20" width={width-20} height={height-40} rx="8" fill="#4b5563" stroke="#374151" strokeWidth="2" /><circle cx={width/2} cy={height/2} r="30" fill="#374151" stroke="#94a3b8" strokeWidth="2" /><g transform={`translate(${width/2}, ${height/2})`}><path d="M-15 0 L15 0 M0 -15 L0 15" stroke="white" strokeWidth="3" className={isPowered ? "animate-spin-fast origin-center" : ""} /></g><text x={width/2} y="15" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="bold">{label}</text></g>);
+        const BulbVisual = ({ width, height, isPowered, label="BULB" }) => (<g><path d={`M ${width/2-10} ${height-10} L ${width/2+10} ${height-10} L ${width/2+15} ${height-30} L ${width/2-15} ${height-30} Z`} fill="#94a3b8" /><circle cx={width/2} cy={height/2-5} r="25" fill={isPowered ? "#fef08a" : "#f1f5f9"} stroke={isPowered ? "#facc15" : "#cbd5e1"} strokeWidth={2} />{isPowered && <circle cx={width/2} cy={height/2-5} r="32" fill="none" stroke="#fef08a" strokeWidth="2" opacity="0.5" className="animate-pulse" />}</g>);
+        const SocketVisual = ({ width, height, isPowered }) => (<g><rect x="0" y="0" width={width} height={height} rx="8" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" /><circle cx={width*0.3} cy={height/2} r="5" fill="#1e293b" /><circle cx={width*0.7} cy={height/2} r="5" fill="#1e293b" /><circle cx={width/2} cy={height*0.75} r="4" fill="#1e293b" />{isPowered && <circle cx={width-15} cy="15" r="3" fill="#22c55e" className="animate-pulse" />}<text x={width/2} y={height - 10} textAnchor="middle" fill="#64748b" fontSize="8" fontWeight="bold">AC SOCKET</text></g>);
+        const FuseVisual = ({ width, height }) => (<g><rect x="15" y="10" width={width-30} height={height-20} rx="4" fill="#f8fafc" stroke="#64748b" strokeWidth="2" /><rect x="22" y="25" width={width-44} height={height-50} fill="#fef3c7" stroke="#d97706" /><line x1={width/2} y1="25" x2={width/2} y2={height-25} stroke="#b45309" strokeWidth="1" strokeDasharray="2 1" /><text x={width/2} y={height/2 + 3} textAnchor="middle" fill="#475569" fontSize="8" fontWeight="bold" transform={`rotate(-90 ${width/2} ${height/2})`}>DC FUSE</text></g>);
+        const SurgeVisual = ({ width, height, label, color }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill={color} stroke="#1e293b" strokeWidth="2" /><rect x="10" y="10" width={width - 20} height={height / 2} rx="2" fill="white" opacity="0.2" /><text x={width/2} y={height - 15} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{label}</text></g>);
+        const CombinerBoxVisual = ({ width, height }) => (<g><rect x="0" y="0" width={width} height={height} rx="6" fill="#e2e8f0" stroke="#334155" strokeWidth="2" /><rect x="10" y="10" width={width-20} height={height-20} rx="4" fill="#f8fafc" stroke="#94a3b8" /><path d={`M10 ${height/2} L${width-10} ${height/2}`} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2"/><text x={width/2} y="30" textAnchor="middle" fill="#475569" fontSize="11" fontWeight="bold">COMBINER BOX</text><rect x={20} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/><rect x={width-60} y={45} width="40" height="40" rx="2" fill="#cbd5e1" stroke="#94a3b8"/><text x={40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">INPUT</text><text x={width-40} y={70} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">OUTPUT</text></g>);
+        const AcMeterVisual = ({ width, height, volts, watts }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#0f172a" strokeWidth="2" /><rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" /><text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text><text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/volts).toFixed(2) : "0.00"} A</text><text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text><text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text><text x={width/2} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="bold">AC ENERGY METER</text></g>);
+        const DcWattMeterVisual = ({ width, height, volts, watts }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill="#1e293b" stroke="#334155" strokeWidth="2" /><rect x="10" y="10" width={width-20} height={55} fill="#0f172a" stroke="#334155" /><text x="15" y="25" fill="#38bdf8" fontSize="10" fontFamily="monospace">VOLT: {volts.toFixed(1)} V</text><text x="15" y="38" fill="#fbbf24" fontSize="10" fontFamily="monospace">CURR: {volts > 0 ? (watts/Math.max(volts,1)).toFixed(2) : "0.00"} A</text><text x="15" y="51" fill="#4ade80" fontSize="10" fontFamily="monospace">POWR: {Math.round(watts)} W</text><text x="15" y="64" fill="#a78bfa" fontSize="10" fontFamily="monospace">ENER: {(watts*0.1).toFixed(0)} Wh</text><text x={width/2} y={height-10} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="bold">DC POWER METER</text></g>);
+        const ConsumerMainVisual = ({ width, height, isOn, onToggle, isInputPowered }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" /><rect x="10" y="30" width={width-20} height="50" rx="2" fill="#334155" /> <circle cx={20} cy={15} r="4" fill={isInputPowered ? "#f97316" : "#475569"} stroke="white" strokeWidth="1" /><g transform="translate(0, 5)" onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }} className="cursor-pointer" onPointerDown={(e) => e.stopPropagation()}><rect x={width/2 - 15} y="40" width="30" height="30" rx="2" fill="black" /><rect x={width/2 - 10} y={isOn ? "35" : "50"} width="20" height="15" rx="2" fill={isOn ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="1" /></g><text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="bold">MAIN 2P</text><text x={width/2} y="95" textAnchor="middle" fill={isOn ? "#16a34a" : "#94a3b8"} fontSize="9" fontWeight="bold">{isOn ? "ON" : "OFF"}</text></g>);
+        const ConsumerSubVisual = ({ width, height, isOn, onToggle, isInputPowered }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" /><rect x="15" y="30" width={width-30} height="50" rx="2" fill="#334155" /> <circle cx={10} cy={10} r="3" fill={isInputPowered ? "#f97316" : "#475569"} stroke="white" strokeWidth="1" /><g transform="translate(0, 5)" onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }} className="cursor-pointer" onPointerDown={(e) => e.stopPropagation()}><rect x={width/2 - 8} y="40" width="16" height="30" rx="2" fill="black" /><rect x={width/2 - 6} y={isOn ? "35" : "50"} width="12" height="15" rx="2" fill={isOn ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="1" /></g><text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="9" fontWeight="bold">SUB 1P</text></g>);
+        const GroundBarVisual = ({ width, height }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill="#16a34a" stroke="#15803d" strokeWidth="2" />{[20, 50, 80, 110, 140].map(cx => ( <circle key={cx} cx={cx} cy={height/2} r="5" fill="#15803d" stroke="#052e16" strokeWidth="1" /> ))}</g>);
+        const TerminalBlockVisual = ({ width, height, color, label }) => (<g><rect x="0" y="0" width={width} height={height} rx="4" fill={color} stroke="#0f172a" strokeWidth="2" /><rect x="5" y="5" width={width-10} height={height-10} rx="2" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />{[20, 40, 60, 80].map(cx => ( <circle key={cx} cx={cx} cy={height/2} r="4" fill="white" stroke="#475569" strokeWidth="2" /> ))}<text x={width/2} y={-5} textAnchor="middle" fill="#475569" fontSize="9" fontWeight="bold">{label}</text></g>);
 
-                <g transform="translate(0, 5)" 
-                   onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }} 
-                   className="cursor-pointer"
-                   onPointerDown={(e) => e.stopPropagation()}
-                >
-                    <rect x={width/2 - 15} y="40" width="30" height="30" rx="2" fill="black" />
-                    <rect x={width/2 - 10} y={isOn ? "35" : "50"} width="20" height="15" rx="2" fill={isOn ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="1" />
-                </g>
-                <text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="10" fontWeight="bold">MAIN 2P</text>
-                <text x={width/2} y="95" textAnchor="middle" fill={isOn ? "#16a34a" : "#94a3b8"} fontSize="9" fontWeight="bold">{isOn ? "ON" : "OFF"}</text>
-            </g>
-        );
-
-        const ConsumerSubVisual = ({ width, height, isOn, onToggle, isInputPowered }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill="#e2e8f0" stroke="#475569" strokeWidth="2" />
-                <rect x="15" y="30" width={width-30} height="50" rx="2" fill="#334155" />
-                
-                {/* Input LED */}
-                <circle cx={10} cy={10} r="3" fill={isInputPowered ? "#f97316" : "#475569"} stroke="white" strokeWidth="1" />
-
-                <g transform="translate(0, 5)"
-                   onClick={(e) => { e.stopPropagation(); onToggle && onToggle(); }} 
-                   className="cursor-pointer"
-                   onPointerDown={(e) => e.stopPropagation()}
-                >
-                   <rect x={width/2 - 8} y="40" width="16" height="30" rx="2" fill="black" />
-                   <rect x={width/2 - 6} y={isOn ? "35" : "50"} width="12" height="15" rx="2" fill={isOn ? "#22c55e" : "#ef4444"} stroke="white" strokeWidth="1" />
-                </g>
-                <text x={width/2} y="20" textAnchor="middle" fill="#0f172a" fontSize="9" fontWeight="bold">SUB 1P</text>
-            </g>
-        );
-
-        const GroundBarVisual = ({ width, height }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill="#16a34a" stroke="#15803d" strokeWidth="2" />
-                {[20, 50, 80, 110, 140].map(cx => ( <circle key={cx} cx={cx} cy={height/2} r="5" fill="#15803d" stroke="#052e16" strokeWidth="1" /> ))}
-            </g>
-        );
-
-        const TerminalBlockVisual = ({ width, height, color, label }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="4" fill={color} stroke="#0f172a" strokeWidth="2" />
-                <rect x="5" y="5" width={width-10} height={height-10} rx="2" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
-                {[20, 40, 60, 80].map(cx => ( <circle key={cx} cx={cx} cy={height/2} r="4" fill="white" stroke="#475569" strokeWidth="2" /> ))}
-                <text x={width/2} y={-5} textAnchor="middle" fill="#475569" fontSize="9" fontWeight="bold">{label}</text>
-            </g>
-        );
 
         const App = () => {
             const [components, setComponents] = useState([]);
@@ -492,102 +382,68 @@
             const [simResults, setSimResults] = useState({ voltages: new Map(), states: {}, batteryDrainWatts: 0, isShort: false, terminalVoltages: {} });
             const [masterLoadOn, setMasterLoadOn] = useState(true); 
             const [tick, setTick] = useState(0);
-            const [zoom, setZoom] = useState(1); // Zoom State
+            const [zoom, setZoom] = useState(1);
             const [isProbeMode, setIsProbeMode] = useState(false);
             const [mousePos, setMousePos] = useState({x:0, y:0});
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
             const simResultsRef = useRef(simResults);
             const sunIntensityRef = useRef(sunIntensity);
             const lastTapRef = useRef({ time: 0, id: null });
             const lastTouchRef = useRef(null);
-            const toolbarRef = useRef(null);
+            const canvasRef = useRef(null);
 
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
             useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
 
-            const canvasRef = useRef(null);
-
             const getLocalPos = (e) => {
                 if (!canvasRef.current) return { x: 0, y: 0 };
                 const rect = canvasRef.current.getBoundingClientRect();
-                const scrollLeft = canvasRef.current.scrollLeft;
-                const scrollTop = canvasRef.current.scrollTop;
-                // Adjust calculation with Zoom factor
                 return { 
-                    x: (e.clientX - rect.left + scrollLeft) / zoom, 
-                    y: (e.clientY - rect.top + scrollTop) / zoom 
+                    x: (e.clientX - rect.left + canvasRef.current.scrollLeft) / zoom, 
+                    y: (e.clientY - rect.top + canvasRef.current.scrollTop) / zoom 
                 };
             };
 
-            // --- Robust Touch Handling to Prevent Pinch Zoom ---
+            // Touch Panning
             useEffect(() => {
                 const container = canvasRef.current;
                 if (!container) return;
 
                 const handleTouchStart = (e) => {
                     if (e.touches.length === 2) {
-                        e.preventDefault(); // Lock zoom immediately on start
-                        const t1 = e.touches[0];
-                        const t2 = e.touches[1];
-                        lastTouchRef.current = {
-                            x: (t1.clientX + t2.clientX) / 2,
-                            y: (t1.clientY + t2.clientY) / 2
-                        };
-                    } else {
-                        lastTouchRef.current = null;
-                    }
+                        e.preventDefault();
+                        const t1 = e.touches[0]; const t2 = e.touches[1];
+                        lastTouchRef.current = { x: (t1.clientX + t2.clientX)/2, y: (t1.clientY + t2.clientY)/2 };
+                    } else { lastTouchRef.current = null; }
                 };
 
                 const handleTouchMove = (e) => {
-                    if (e.touches.length === 2) {
-                        e.preventDefault(); // Stop native zoom
-                        
-                        // Handle Custom Panning Only
-                        if(lastTouchRef.current) {
-                            const t1 = e.touches[0];
-                            const t2 = e.touches[1];
-                            const currentX = (t1.clientX + t2.clientX) / 2;
-                            const currentY = (t1.clientY + t2.clientY) / 2;
-                            const deltaX = currentX - lastTouchRef.current.x;
-                            const deltaY = currentY - lastTouchRef.current.y;
-
-                            container.scrollLeft -= deltaX;
-                            container.scrollTop -= deltaY;
-                            lastTouchRef.current = { x: currentX, y: currentY };
-                        }
+                    if (e.touches.length === 2 && lastTouchRef.current) {
+                        e.preventDefault(); 
+                        const t1 = e.touches[0]; const t2 = e.touches[1];
+                        const cx = (t1.clientX + t2.clientX)/2; const cy = (t1.clientY + t2.clientY)/2;
+                        container.scrollLeft -= cx - lastTouchRef.current.x;
+                        container.scrollTop -= cy - lastTouchRef.current.y;
+                        lastTouchRef.current = { x: cx, y: cy };
                     }
                 };
 
-                const handleTouchEnd = () => {
-                    lastTouchRef.current = null;
-                };
+                const handleTouchEnd = () => { lastTouchRef.current = null; };
+                const pd = (e) => e.preventDefault();
 
-                // Prevent Safari Gesture Zoom
-                const handleGestureStart = (e) => {
-                    e.preventDefault();
-                };
-
-                const handleGestureChange = (e) => {
-                    e.preventDefault();
-                };
-
-                // Attach non-passive listeners to guarantee preventDefault works
                 container.addEventListener('touchstart', handleTouchStart, { passive: false });
                 container.addEventListener('touchmove', handleTouchMove, { passive: false });
                 container.addEventListener('touchend', handleTouchEnd);
-                
-                // Block document-level zooming on Safari
-                document.addEventListener('gesturestart', handleGestureStart);
-                document.addEventListener('gesturechange', handleGestureChange);
+                document.addEventListener('gesturestart', pd); document.addEventListener('gesturechange', pd);
 
                 return () => {
                     container.removeEventListener('touchstart', handleTouchStart);
                     container.removeEventListener('touchmove', handleTouchMove);
                     container.removeEventListener('touchend', handleTouchEnd);
-                    document.removeEventListener('gesturestart', handleGestureStart);
-                    document.removeEventListener('gesturechange', handleGestureChange);
+                    document.removeEventListener('gesturestart', pd); document.removeEventListener('gesturechange', pd);
                 };
-            }, []); // Empty dependency array to run once
+            }, []);
 
             useEffect(() => {
                 const i = setInterval(() => setTick(t => (t + 1) % 100), 400); 
@@ -600,9 +456,7 @@
                 
                 components.forEach(c => {
                     const spec = SPECS[c.type];
-                    if(spec?.terminals) spec.terminals.forEach(t => {
-                        const s = new Set(); s.add(`${c.id}_${t.id}`); nets.push(s);
-                    });
+                    if(spec?.terminals) spec.terminals.forEach(t => { nets.push(new Set([`${c.id}_${t.id}`])); });
                 });
                 
                 wires.forEach(w => {
@@ -630,40 +484,25 @@
                 const netVoltages = new Map();
                 const compStates = {};
                 
-                // 0. Detect Short Circuits
+                // Detection Short Circuits
                 let isShort = false;
-
-                // Function to trace if two nets are connected through closed switches
                 const areNetsConnected = (net1, net2) => {
-                    if (net1 === net2) return true; // Directly connected via wire
-                    
+                    if (net1 === net2) return true;
                     const visited = new Set([net1]);
                     const queue = [net1];
-
                     while (queue.length > 0) {
                         const currentNet = queue.pop();
                         if (currentNet === net2) return true;
-
-                        // Find components bridging from this net to others
                         currentNet.forEach(termId => {
                             const [cId, tName] = termId.split('_');
                             const comp = components.find(c => c.id === cId);
                             if (!comp) return;
-
-                            // Check switchable components
                             if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.FUSE].includes(comp.type)) {
-                                const isOn = comp.isOn !== undefined ? comp.isOn : true;
-                                if (isOn) {
-                                    let otherTerm = null;
-                                    if (tName.startsWith('in')) otherTerm = tName.replace('in', 'out');
-                                    else if (tName.startsWith('out')) otherTerm = tName.replace('out', 'in');
-
+                                if (comp.isOn !== false) {
+                                    let otherTerm = tName.startsWith('in') ? tName.replace('in', 'out') : tName.startsWith('out') ? tName.replace('out', 'in') : null;
                                     if (otherTerm) {
                                         const otherNet = getNet(`${cId}_${otherTerm}`);
-                                        if (otherNet && !visited.has(otherNet)) {
-                                            visited.add(otherNet);
-                                            queue.push(otherNet);
-                                        }
+                                        if (otherNet && !visited.has(otherNet)) { visited.add(otherNet); queue.push(otherNet); }
                                     }
                                 }
                             }
@@ -672,83 +511,63 @@
                     return false;
                 };
 
-                // Check sources for L-N or Pos-Neg shorts
                 const sources = [
                     ...components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).map(c => ({ l: `${c.id}_l`, n: `${c.id}_n` })),
                     ...components.filter(c => c.type === COMPONENT_TYPES.BATTERY && c.soc > 0).map(c => ({ l: `${c.id}_pos`, n: `${c.id}_neg` })),
                     ...components.filter(c => c.type === COMPONENT_TYPES.PANEL).map(c => ({ l: `${c.id}_pos`, n: `${c.id}_neg` })),
-                    ...components.filter(c => c.type === COMPONENT_TYPES.INVERTER && compStates[c.id]?.isPowered).map(c => ({ l: `${c.id}_ac_l`, n: `${c.id}_ac_n` }))
+                    ...components.filter(c => c.type.startsWith('inv_') && compStates[c.id]?.isPowered).flatMap(c => {
+                        if (c.type.includes('_3p')) return [{ l: `${c.id}_ac_l1`, n: `${c.id}_ac_n` }, { l: `${c.id}_ac_l2`, n: `${c.id}_ac_n` }, { l: `${c.id}_ac_l3`, n: `${c.id}_ac_n` }];
+                        return [{ l: `${c.id}_ac_l`, n: `${c.id}_ac_n` }];
+                    })
                 ];
 
                 for (const src of sources) {
-                    const netL = getNet(src.l);
-                    const netN = getNet(src.n);
-                    if (netL && netN && areNetsConnected(netL, netN)) {
-                        isShort = true;
-                        break;
-                    }
+                    const netL = getNet(src.l); const netN = getNet(src.n);
+                    if (netL && netN && areNetsConnected(netL, netN)) { isShort = true; break; }
                 }
 
                 if (isShort) {
                     setSimResults({ voltages: netVoltages, states: {}, batteryDrainWatts: 0, isShort: true, terminalVoltages: {} });
-                    return; // Stop processing if shorted
+                    return; 
                 }
 
-                // 1. Calculate Voltages & Powered Status first
                 const noiseV = (Math.random() - 0.5) * 0.2; 
                 const noiseW = (Math.random() - 0.5) * 5;   
-
-                const batteries = components.filter(c => c.type === COMPONENT_TYPES.BATTERY);
-                const panels = components.filter(c => c.type === COMPONENT_TYPES.PANEL);
-                const hasBattery = batteries.length > 0;
-
-                panels.forEach(pv => {
-                    const maxV = pv.maxVoltage || 40;
-                    const v = (maxV * (sunIntensity/100)) + noiseV; 
-                    const pos = getNet(`${pv.id}_pos`); const neg = getNet(`${pv.id}_neg`);
-                    if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
-                    netVoltages.set(pos, (netVoltages.get(neg)||0) + v);
-                });
-
                 let systemBatVoltage = 0;
-                batteries.forEach(bat => {
-                   if((bat.soc !== undefined ? bat.soc : 50) > 0) { 
-                       const pos = getNet(`${bat.id}_pos`); const neg = getNet(`${bat.id}_neg`);
-                       if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
-                       let soc = bat.soc || 50;
-                       let baseV = 11.8 + (soc / 100) * 1.0; 
-                       netVoltages.set(pos, baseV); 
-                       systemBatVoltage = baseV;
-                   }
-                });
-
-                components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).forEach(src => {
-                    const l = getNet(`${src.id}_l`); const n = getNet(`${src.id}_n`);
-                    if(n) netVoltages.set(n, 0); // Correctly set N to 0V
-                    if(l) netVoltages.set(l, 220 + noiseV*5); 
-                    compStates[src.id] = { isPowered: true };
-                });
-                
                 let isSystemCharging = false;
 
-                // Propagate Voltages
+                // Set initial Voltages
+                components.forEach(c => {
+                    if (c.type === COMPONENT_TYPES.PANEL) {
+                        const v = ((c.maxVoltage || 40) * (sunIntensity/100)) + noiseV; 
+                        const pos = getNet(`${c.id}_pos`); const neg = getNet(`${c.id}_neg`);
+                        if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
+                        netVoltages.set(pos, (netVoltages.get(neg)||0) + v);
+                    } else if (c.type === COMPONENT_TYPES.BATTERY && (c.soc || 50) > 0) {
+                        const pos = getNet(`${c.id}_pos`); const neg = getNet(`${c.id}_neg`);
+                        if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
+                        let baseV = 11.8 + ((c.soc||50) / 100) * 1.0; 
+                        netVoltages.set(pos, baseV); 
+                        systemBatVoltage = baseV;
+                    } else if (c.type === COMPONENT_TYPES.AC_SOURCE) {
+                        const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
+                        if(n) netVoltages.set(n, 0); 
+                        if(l) netVoltages.set(l, 220 + noiseV*5); 
+                        compStates[c.id] = { isPowered: true };
+                    }
+                });
+
+                // Propagate 
                 for(let pass=0; pass<3; pass++) {
                     components.forEach(c => {
                         if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.COMBINER_BOX].includes(c.type)) {
                             if(c.type === COMPONENT_TYPES.COMBINER_BOX) {
-                                // Logic for Combiner Box: Parallel connection
-                                const groups = [
-                                    ['in1_pos', 'in2_pos', 'out_pos'],
-                                    ['in1_neg', 'in2_neg', 'out_neg']
-                                ];
-                                groups.forEach(group => {
-                                    const nets = group.map(id => getNet(`${c.id}_${id}`)).filter(n => n !== undefined);
+                                [['in1_pos', 'in2_pos', 'out_pos'], ['in1_neg', 'in2_neg', 'out_neg']].forEach(group => {
+                                    const nets = group.map(id => getNet(`${c.id}_${id}`)).filter(n => n);
                                     const voltages = nets.map(n => netVoltages.get(n)).filter(v => v !== undefined);
                                     if(voltages.length > 0) {
                                         const v = Math.max(...voltages);
-                                        nets.forEach(n => {
-                                            if(netVoltages.get(n) !== v) netVoltages.set(n, v);
-                                        });
+                                        nets.forEach(n => { if(netVoltages.get(n) !== v) netVoltages.set(n, v); });
                                     }
                                 });
                             } else {
@@ -758,665 +577,352 @@
                                 else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
                                 else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
 
-                                // CHECK IS BREAKER ON?
-                                const isOn = c.isOn !== undefined ? c.isOn : true; // Default to ON for old components
-
-                                pairs.forEach(([iId, oId]) => {
-                                    const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
-                                    
-                                    // Propagate only if ON (except meters usually pass through, but here treating meters as pass through always)
-                                    // Actually ENERGY_METER and DC_WATT_METER are meters, they should always conduct.
-                                    // Breakers and Fuses should check `isOn`.
-                                    const isBreaker = [COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(c.type);
-                                    
-                                    if (!isBreaker || isOn) {
-                                         // Propagate value even if 0
-                                         if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
-                                         else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
-                                    }
-                                });
-                            }
-
-                            // Check Breaker Input Voltage (For LED Indicator)
-                            let inputPowered = false;
-                            if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
-                                const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
-                                const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
-                                if(v > 50) inputPowered = true;
-                            } else if (c.type === COMPONENT_TYPES.CONSUMER_SUB) {
-                                 const l = getNet(`${c.id}_in`);
-                                 const v = netVoltages.get(l) || 0; // Check voltage presence (simplified for 1P)
-                                 if (v > 50) inputPowered = true;
-                            } else if (c.type === COMPONENT_TYPES.BREAKER_DC) {
-                                const p = getNet(`${c.id}_in_1`); const n = getNet(`${c.id}_in_2`);
-                                const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
-                                if(v > 10) inputPowered = true;
-                            }
-                            
-                            compStates[c.id] = { ...compStates[c.id], isInputPowered: inputPowered };
-                        }
-                    });
-
-                    components.filter(c => c.type === COMPONENT_TYPES.CHARGER).forEach(c => {
-                        const pvp = getNet(`${c.id}_pv_pos`);
-                        const batp = getNet(`${c.id}_bat_pos`);
-                        const loadp = getNet(`${c.id}_load_pos`);
-                        
-                        const vpv = netVoltages.get(pvp) || 0;
-                        const vbat = netVoltages.get(batp) || 0;
-                        
-                        const isCharging = vpv > (vbat + 1.0) && vpv > 13;
-                        if(isCharging) isSystemCharging = true;
-                        
-                        const totalPVWatts = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
-                        const chargingWatts = isCharging ? (sunIntensity/100) * totalPVWatts : 0; 
-
-                        if(isCharging) {
-                            const chargeBoost = 0.5 + (sunIntensity/100) * 1.0 + noiseV;
-                            const newBatV = Math.min(14.4, systemBatVoltage + chargeBoost);
-                            if(batp) netVoltages.set(batp, newBatV);
-                            if(loadp) netVoltages.set(loadp, 12.0 + noiseV); 
-                        } else {
-                            if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
-                        }
-                        const hasWireOnLoad = wires.some(w => (w.from === c.id && w.fromTerm === 'load_pos') || (w.to === c.id && w.toTerm === 'load_pos'));
-                        compStates[c.id] = { ...compStates[c.id], isCharging, hasLoad: hasWireOnLoad && (vbat > 10 || isCharging), pvInputWatts: chargingWatts };
-                    });
-
-                    components.filter(c => c.type === COMPONENT_TYPES.INVERTER).forEach(c => {
-                        const acl = getNet(`${c.id}_ac_l`); 
-                        const acn = getNet(`${c.id}_ac_n`); // Add Neutral
-                        const dcp = getNet(`${c.id}_dc_pos`);
-                        const vIn = netVoltages.get(dcp) || 0;
-                        
-                        if(vIn > 11) { 
-                            if(acl) netVoltages.set(acl, 220 + noiseV*5); 
-                            if(acn) netVoltages.set(acn, 0); // Explicitly set Neutral to 0V
-                            compStates[c.id] = { ...compStates[c.id], isPowered: true }; 
-                        } else {
-                             compStates[c.id] = { ...compStates[c.id], isPowered: false }; 
-                        }
-                    });
-                }
-                
-                // 2. Determine Individual Load Demands
-                let globalBatteryDrain = 0;
-
-                // 2.1 Basic DC/AC Loads (Bulb, Motor)
-                components.forEach(c => {
-                     if(['bulb','socket','motor'].includes(c.type)) {
-                        const l = getNet(c.type === 'motor' ? `${c.id}_l` : `${c.id}_l`); 
-                        const n = getNet(`${c.id}_n`);
-                        
-                        // Strict Check: Both wires must have valid potential
-                        const vL = netVoltages.get(l);
-                        const vN = netVoltages.get(n);
-                        
-                        if (vL !== undefined && vN !== undefined && masterLoadOn) {
-                            const v = Math.abs(vL - vN);
-                            if (v > 10) { 
-                                const nominalWatts = c.watts || 100;
-                                const actualWatts = nominalWatts + noiseW;
-                                compStates[c.id] = { ...compStates[c.id], isPowered: true, volts: v, activeWatts: actualWatts };
-                                if (c.type === COMPONENT_TYPES.MOTOR) globalBatteryDrain += actualWatts;
-                            } else {
-                                compStates[c.id] = { ...compStates[c.id], isPowered: false, volts: v, activeWatts: 0 };
-                            }
-                        } else {
-                            compStates[c.id] = { ...compStates[c.id], isPowered: false, volts: 0, activeWatts: 0 };
-                        }
-                    }
-                });
-
-                // 2.2 AC Loads for Inverters
-                components.filter(c => c.type === COMPONENT_TYPES.INVERTER).forEach(inv => {
-                    let totalAcLoad = 0;
-                    if(compStates[inv.id]?.isPowered) {
-                        const startNet = getNet(`${inv.id}_ac_l`);
-                        if(startNet) {
-                            const queue = [startNet];
-                            const visited = new Set([startNet]);
-                            while(queue.length > 0) {
-                                const net = queue.pop();
-                                if(net) {
-                                    net.forEach(termId => {
-                                        const parts = termId.split('_');
-                                        const cId = parts[0];
-                                        const tName = parts.slice(1).join('_');
-                                        if(cId === inv.id) return;
-                                        const comp = components.find(x => x.id === cId);
-                                        
-                                        // Check if propagation blocked by breaker
-                                        if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(comp.type)) {
-                                            const isOn = comp.isOn !== undefined ? comp.isOn : true;
-                                            if (!isOn) return; // Stop tracing here
-                                        }
-
-                                        // Loads
-                                        if(['bulb','socket'].includes(comp.type) && (tName === 'l' || tName === 'in' || tName === 'in_l') && compStates[cId]?.activeWatts) {
-                                            totalAcLoad += compStates[cId].activeWatts;
-                                        }
-                                        // Breakers
-                                        if(['ac_breaker','consumer_main','consumer_sub','energy_meter'].includes(comp.type)) {
-                                             let otherTerm = null;
-                                             if(tName.includes('in')) otherTerm = tName.replace('in', 'out');
-                                             else if(tName.includes('out')) otherTerm = tName.replace('out', 'in');
-                                             
-                                             if(otherTerm) {
-                                                 const otherNet = getNet(`${cId}_${otherTerm}`);
-                                                 if(otherNet && !visited.has(otherNet)) {
-                                                     visited.add(otherNet);
-                                                     queue.push(otherNet);
-                                                 }
-                                             }
-                                        }
+                                if (c.isOn !== false || ['dc_watt_meter','energy_meter'].includes(c.type)) {
+                                    pairs.forEach(([iId, oId]) => {
+                                        const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
+                                        if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
+                                        else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
                                     });
                                 }
                             }
-                        }
-                        const efficiency = 0.9;
-                        const selfConsumption = 10;
-                        const dcDraw = (totalAcLoad / efficiency) + selfConsumption;
-                        compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: totalAcLoad, dcInputWatts: dcDraw };
-                        globalBatteryDrain += dcDraw; 
-                    } else {
-                        compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: 0, dcInputWatts: 0 };
-                    }
-                });
-
-                // 3. Trace Power for Meters (New Logic)
-                const tracePower = (startNet) => {
-                    if (!startNet) return 0;
-                    let totalWatts = 0;
-                    const queue = [startNet];
-                    const visited = new Set([startNet]);
-
-                    while (queue.length > 0) {
-                        const net = queue.pop();
-                        net.forEach(termId => {
-                            const parts = termId.split('_');
-                            const cId = parts[0];
-                            const tName = parts.slice(1).join('_'); // Correctly handle names with underscores like 'in_l'
-
-                            const comp = components.find(c => c.id === cId);
-                            if (!comp) return;
-
-                            // Breaker Logic for Trace
-                             if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(comp.type)) {
-                                const isOn = comp.isOn !== undefined ? comp.isOn : true;
-                                if (!isOn) return; // Stop tracing
-                            }
-
-                            // IS THIS A LOAD?
-                            if ((['bulb', 'socket'].includes(comp.type) && (tName === 'l' || tName === 'in_l')) ||
-                                (comp.type === 'motor' && (tName === 'l' || tName === 'pos'))) {
-                                if (compStates[cId]?.activeWatts) totalWatts += compStates[cId].activeWatts;
-                            }
-                            // Inverter DC Input
-                            if (comp.type === COMPONENT_TYPES.INVERTER && (tName === 'dc_pos' || tName === 'pos')) {
-                                if (compStates[cId]?.dcInputWatts) totalWatts += compStates[cId].dcInputWatts;
-                            }
-                            // Charger PV Input (Load from Panel)
-                            if (comp.type === COMPONENT_TYPES.CHARGER && tName === 'pv_pos') {
-                                if (compStates[cId]?.pvInputWatts) totalWatts += compStates[cId].pvInputWatts;
-                            }
-                            // Charger Battery Input (Charge from Charger - Load for System if tracing from Charger to Bat?)
-                            // Simplified: Charger BAT+ is a source for loads, but if we trace from Charger to Bat, we see Bat.
-                            if (comp.type === COMPONENT_TYPES.BATTERY && tName === 'pos') {
-                                // Battery charging is a load
-                                const currentSim = simResultsRef.current;
-                                const isCharging = Object.values(currentSim.states).some(s => s.isCharging);
-                                if(isCharging && comp.soc < 100) {
-                                    // Estimate charging power ~100W per battery roughly
-                                    totalWatts += 100; 
-                                }
-                            }
                             
-                            // IS THIS A PASS-THROUGH?
-                            if (['breaker_dc', 'fuse', 'ac_breaker', 'consumer_main', 'consumer_sub', 'dc_watt_meter', 'energy_meter', 'combiner_box'].includes(comp.type)) {
-                                let otherTermName = null;
-                                // Handle Combiner Box Logic
-                                if(comp.type === 'combiner_box') {
-                                    if(tName === 'in1_pos' || tName === 'in2_pos') otherTermName = 'out_pos';
-                                    if(tName === 'in1_neg' || tName === 'in2_neg') otherTermName = 'out_neg';
-                                    if(tName === 'out_pos') { 
-                                         // If we are tracing upstream (rare for load, but useful for source tracing), we might go back. 
-                                         // But for load tracing, we usually go downstream.
-                                         // If we hit combiner OUT, we are coming FROM load? No.
-                                         // We trace Loads starting from Meter OUT.
-                                         // Meter OUT -> Combiner IN -> Combiner OUT -> Load.
-                                         // So if we hit Combiner IN, we go to OUT.
-                                         // Wait, Combiner usually combines Panels (Sources).
-                                         // Panel -> Wire -> Combiner IN -> Combiner OUT -> Wire -> Meter -> Inverter.
-                                         // If Meter is after Combiner: Meter OUT -> Inverter IN. (Works)
-                                         // If Meter is BEFORE Combiner: Meter OUT -> Combiner IN -> Combiner OUT -> Inverter IN.
-                                    }
-                                }
+                            // LED Indicator Logic
+                            let inputPowered = false;
+                            if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
+                                if(Math.abs((netVoltages.get(getNet(`${c.id}_in_l`))||0) - (netVoltages.get(getNet(`${c.id}_in_n`))||0)) > 50) inputPowered = true;
+                            } else if (c.type === COMPONENT_TYPES.CONSUMER_SUB) {
+                                if ((netVoltages.get(getNet(`${c.id}_in`))||0) > 50) inputPowered = true;
+                            } else if (c.type === COMPONENT_TYPES.BREAKER_DC) {
+                                if(Math.abs((netVoltages.get(getNet(`${c.id}_in_1`))||0) - (netVoltages.get(getNet(`${c.id}_in_2`))||0)) > 10) inputPowered = true;
+                            }
+                            compStates[c.id] = { ...compStates[c.id], isInputPowered: inputPowered };
+                        }
 
-                                if(tName.startsWith('in')) {
-                                    if(tName === 'in') otherTermName = 'out';
-                                    if(tName === 'in_1') otherTermName = 'out_1';
-                                    if(tName === 'in_l') otherTermName = 'out_l';
-                                    if(tName === 'in_pos') otherTermName = 'out_pos';
-                                }
+                        if (c.type === COMPONENT_TYPES.CHARGER) {
+                            const pvp = getNet(`${c.id}_pv_pos`); const batp = getNet(`${c.id}_bat_pos`); const loadp = getNet(`${c.id}_load_pos`);
+                            const vpv = netVoltages.get(pvp) || 0; const vbat = netVoltages.get(batp) || 0;
+                            const isCharging = vpv > (vbat + 1.0) && vpv > 13;
+                            if(isCharging) isSystemCharging = true;
+                            const totalPVWatts = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
+                            
+                            if(isCharging) {
+                                if(batp) netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100)*1.0 + noiseV));
+                                if(loadp) netVoltages.set(loadp, 12.0 + noiseV); 
+                            } else if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
+                            
+                            compStates[c.id] = { ...compStates[c.id], isCharging, hasLoad: wires.some(w => w.from === c.id && w.fromTerm === 'load_pos' || w.to === c.id && w.toTerm === 'load_pos') && (vbat > 10 || isCharging), pvInputWatts: isCharging ? (sunIntensity/100) * totalPVWatts : 0 };
+                        }
 
-                                if(otherTermName) {
-                                    const otherNet = getNet(`${cId}_${otherTermName}`);
-                                    if (otherNet && !visited.has(otherNet)) {
-                                        visited.add(otherNet);
-                                        queue.push(otherNet);
-                                    }
+                        if (c.type.startsWith('inv_')) {
+                            const pv1p = getNet(`${c.id}_pv1_pos`); const pv1n = getNet(`${c.id}_pv1_neg`);
+                            const pv2p = getNet(`${c.id}_pv2_pos`); const pv2n = getNet(`${c.id}_pv2_neg`);
+                            const batp = getNet(`${c.id}_bat_pos`); const batn = getNet(`${c.id}_bat_neg`);
+
+                            const vPv1 = (netVoltages.get(pv1p) || 0) - (netVoltages.get(pv1n) || 0);
+                            const vPv2 = pv2p ? ((netVoltages.get(pv2p) || 0) - (netVoltages.get(pv2n) || 0)) : 0;
+                            const vBat = batp ? ((netVoltages.get(batp) || 0) - (netVoltages.get(batn) || 0)) : 0;
+
+                            let isPowered = false;
+                            let isCharging = false;
+
+                            if (vPv1 > 15 || vPv2 > 15 || vBat > 11) isPowered = true;
+
+                            if ((vPv1 > 15 || vPv2 > 15) && vBat > 0 && vBat < 14.4) {
+                                isCharging = true; isSystemCharging = true;
+                                if (batp) netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100) * 1.0 + noiseV));
+                            }
+
+                            if (isPowered) {
+                                if (c.type.includes('_1p')) {
+                                    const acl = getNet(`${c.id}_ac_l`); const acn = getNet(`${c.id}_ac_n`);
+                                    if (acl) netVoltages.set(acl, 220 + noiseV*5); if (acn) netVoltages.set(acn, 0);
+                                } else if (c.type.includes('_3p')) {
+                                    const l1 = getNet(`${c.id}_ac_l1`); const l2 = getNet(`${c.id}_ac_l2`); const l3 = getNet(`${c.id}_ac_l3`); const n = getNet(`${c.id}_ac_n`);
+                                    if (l1) netVoltages.set(l1, 220 + noiseV*5); if (l2) netVoltages.set(l2, 220 + noiseV*5); if (l3) netVoltages.set(l3, 220 + noiseV*5); if (n) netVoltages.set(n, 0);
                                 }
                             }
-                        });
-                    }
-                    return totalWatts;
-                };
-
-                // Update Meter States with Traced Power
-                components.forEach(c => {
-                    if(c.type === COMPONENT_TYPES.ENERGY_METER) {
-                        const l = getNet(`${c.id}_in_l`); const n = getNet(`${c.id}_in_n`);
-                        const v = Math.abs((netVoltages.get(l)||0) - (netVoltages.get(n)||0));
-                        
-                        const outNet = getNet(`${c.id}_out_l`);
-                        const w = tracePower(outNet);
-                        
-                        const displayV = v > 0 ? v + (Math.random()-0.5)*2 : 0;
-                        const displayW = w > 0 ? w + (Math.random()-0.5)*2 : 0;
-                        compStates[c.id] = { volts: displayV, watts: displayW };
-                    }
-                    if(c.type === COMPONENT_TYPES.DC_WATT_METER) {
-                        const p = getNet(`${c.id}_in_pos`); const n = getNet(`${c.id}_in_neg`);
-                        const v = Math.abs((netVoltages.get(p)||0) - (netVoltages.get(n)||0));
-                        
-                        const outNet = getNet(`${c.id}_out_pos`);
-                        const w = tracePower(outNet);
-                        
-                        const displayV = v > 0 ? v + (Math.random()-0.5)*0.1 : 0;
-                        const displayW = w > 0 ? w + (Math.random()-0.5)*2 : 0;
-                        
-                        compStates[c.id] = { volts: displayV, watts: displayW };
-                    }
-                });
-
-                if (globalBatteryDrain > 0 && hasBattery) {
-                    const sag = (globalBatteryDrain / 2000) * 1.0; 
-                    batteries.forEach(bat => {
-                        const pos = getNet(`${bat.id}_pos`);
-                        const currentV = netVoltages.get(pos);
-                        if (currentV && !isSystemCharging) {
-                             netVoltages.set(pos, Math.max(10.5, currentV - sag));
+                            compStates[c.id] = { ...compStates[c.id], isPowered, isCharging };
                         }
                     });
                 }
                 
-                // Finalize Voltages for Probe (Flatten Map to String Keys)
+                // Loads Tracing
+                let globalBatteryDrain = 0;
+                components.forEach(c => {
+                     if(['bulb_ac', 'bulb_dc', 'socket_ac', 'motor_ac', 'motor_dc'].includes(c.type)) {
+                        const isDC = c.type.endsWith('_dc');
+                        const l = getNet(isDC ? `${c.id}_pos` : `${c.id}_l`);
+                        const n = getNet(isDC ? `${c.id}_neg` : `${c.id}_n`);
+                        const vL = netVoltages.get(l); const vN = netVoltages.get(n);
+                        
+                        if (vL !== undefined && vN !== undefined && masterLoadOn && Math.abs(vL - vN) > (isDC ? 10 : 150)) { 
+                            const actualWatts = (c.watts || 100) + noiseW;
+                            compStates[c.id] = { ...compStates[c.id], isPowered: true, activeWatts: actualWatts };
+                            if (isDC) globalBatteryDrain += actualWatts;
+                        } else {
+                            compStates[c.id] = { ...compStates[c.id], isPowered: false, activeWatts: 0 };
+                        }
+                    }
+                });
+
+                components.filter(c => c.type.startsWith('inv_')).forEach(inv => {
+                    let totalAcLoad = 0;
+                    if(compStates[inv.id]?.isPowered) {
+                        const startNets = [];
+                        if (inv.type.includes('_1p')) {
+                            const n = getNet(`${inv.id}_ac_l`); if (n) startNets.push(n);
+                        } else {
+                            ['ac_l1', 'ac_l2', 'ac_l3'].forEach(term => {
+                                const n = getNet(`${inv.id}_${term}`); if (n) startNets.push(n);
+                            });
+                        }
+
+                        startNets.forEach(startNet => {
+                            const queue = [startNet]; const visited = new Set([startNet]);
+                            while(queue.length > 0) {
+                                const net = queue.pop();
+                                net.forEach(termId => {
+                                    const [cId, tName] = termId.split('_', 2);
+                                    if(cId === inv.id) return;
+                                    const comp = components.find(x => x.id === cId);
+                                    if (!comp) return;
+                                    if (['ac_breaker','consumer_main','consumer_sub'].includes(comp.type) && comp.isOn === false) return;
+                                    
+                                    // Calculate AC loads connected
+                                    if(['bulb_ac','socket_ac','motor_ac'].includes(comp.type) && (tName === 'l' || tName === 'in' || tName === 'in_l') && compStates[cId]?.activeWatts) {
+                                        totalAcLoad += compStates[cId].activeWatts;
+                                    }
+                                    
+                                    if(['ac_breaker','consumer_main','consumer_sub','energy_meter'].includes(comp.type)) {
+                                         let otherTerm = tName.includes('in') ? tName.replace('in', 'out') : tName.includes('out') ? tName.replace('out', 'in') : null;
+                                         if(otherTerm) {
+                                             const otherNet = getNet(`${cId}_${otherTerm}`);
+                                             if(otherNet && !visited.has(otherNet)) { visited.add(otherNet); queue.push(otherNet); }
+                                         }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // Check Overload
+                        const invCapacityW = (SPECS[inv.type].capacityKW || 5) * 1000;
+                        const isOverloaded = totalAcLoad > invCapacityW;
+
+                        const dcDraw = (totalAcLoad / 0.9) + 10;
+                        compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: totalAcLoad, dcInputWatts: dcDraw, isOverloaded };
+                        globalBatteryDrain += dcDraw; 
+                    } else {
+                        compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: 0, dcInputWatts: 0, isOverloaded: false };
+                    }
+                });
+
+                // --- คำนวณค่าแสดงผลสำหรับ Meter ---
+                let totalAcLoadForMeter = 0;
+                components.forEach(load => {
+                    if(['bulb_ac', 'socket_ac', 'motor_ac'].includes(load.type) && compStates[load.id]?.activeWatts) {
+                        totalAcLoadForMeter += compStates[load.id].activeWatts;
+                    }
+                });
+
+                const totalPVWatts = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
+
+                components.forEach(c => {
+                    // อัปเดตหน้าจอ DC Meter
+                    if (c.type === COMPONENT_TYPES.DC_WATT_METER) {
+                        const p = getNet(`${c.id}_in_pos`);
+                        const n = getNet(`${c.id}_in_neg`);
+                        const v = Math.abs((netVoltages.get(p) || 0) - (netVoltages.get(n) || 0));
+                        
+                        let w = 0;
+                        if (v > 15) {
+                            // หากแรงดันสูง มักจะเป็นฝั่งแผง PV
+                            w = isSystemCharging ? (sunIntensity/100) * totalPVWatts : 0;
+                        } else if (v > 5) {
+                            // หากแรงดันอยู่ในช่วง 12V มักจะเป็นฝั่งแบตเตอรี่และโหลด
+                            w = globalBatteryDrain;
+                        }
+                        compStates[c.id] = { ...compStates[c.id], volts: v, watts: w };
+                    }
+                    // อัปเดตหน้าจอ AC Meter
+                    if (c.type === COMPONENT_TYPES.ENERGY_METER) {
+                        const l = getNet(`${c.id}_in_l`);
+                        const n = getNet(`${c.id}_in_n`);
+                        const v = Math.abs((netVoltages.get(l) || 0) - (netVoltages.get(n) || 0));
+                        
+                        const w = v > 50 ? totalAcLoadForMeter : 0;
+                        compStates[c.id] = { ...compStates[c.id], volts: v, watts: w };
+                    }
+                });
+
                 const finalTerminalVoltages = {};
                 components.forEach(c => {
-                    const spec = SPECS[c.type];
-                    if(spec?.terminals) {
-                        spec.terminals.forEach(t => {
-                            const net = getNet(`${c.id}_${t.id}`);
-                            const v = netVoltages.get(net);
-                            finalTerminalVoltages[`${c.id}_${t.id}`] = v !== undefined ? v : 0;
-                        });
-                    }
+                    if(SPECS[c.type]?.terminals) SPECS[c.type].terminals.forEach(t => {
+                        const v = netVoltages.get(getNet(`${c.id}_${t.id}`));
+                        finalTerminalVoltages[`${c.id}_${t.id}`] = v !== undefined ? v : 0;
+                    });
                 });
 
                 setSimResults({ voltages: netVoltages, states: compStates, batteryDrainWatts: globalBatteryDrain, isShort: false, terminalVoltages: finalTerminalVoltages });
             }, [components, wires, sunIntensity, masterLoadOn, tick]); 
 
-            // ... (Rest of useEffects same as before)
-            useEffect(() => {
-                let interval;
-                if (isRunning) {
-                    interval = setInterval(() => {
-                        setComponents(prev => prev.map(c => {
-                            if (c.type === COMPONENT_TYPES.BATTERY) {
-                                let newSoc = c.soc !== undefined ? c.soc : 50;
-                                const currentSim = simResultsRef.current;
-                                const currentSun = sunIntensityRef.current;
-                                
-                                const isCharging = Object.values(currentSim.states).some(s => s.isCharging);
-                                if (isCharging) {
-                                    const totalPVWatts = prev.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
-                                    const chargeFactor = (totalPVWatts / 100) * 0.8;
-                                    newSoc += (currentSun / 100) * chargeFactor; 
-                                }
-
-                                if (currentSim.batteryDrainWatts > 0) {
-                                    const drainRate = (currentSim.batteryDrainWatts / 1000) * 0.8; 
-                                    newSoc -= drainRate;
-                                } else if (!isCharging && c.soc > 0) {
-                                    newSoc -= 0.01; 
-                                }
-
-                                return { ...c, soc: Math.min(100, Math.max(0, newSoc)) };
-                            }
-                            return c;
-                        }));
-                    }, 200);
-                }
-                return () => clearInterval(interval);
-            }, [isRunning]);
-
             const handlePointerMove = (e) => {
                 setMousePos({x: e.clientX, y: e.clientY});
-                if (dragInfo) {
-                    e.preventDefault(); 
-                }
-                
+                if (dragInfo) e.preventDefault(); 
                 const pos = getLocalPos(e);
                 
-                if(dragInfo?.type === 'comp') {
-                    const rawX = pos.x - dragInfo.offsetX;
-                    const rawY = pos.y - dragInfo.offsetY;
-                    setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: snapToGrid(rawX), y: snapToGrid(rawY)} : c));
-                }
-                
-                if(dragInfo?.type === 'waypoint') {
-                    const snappedPos = { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
-                    setWires(prev => prev.map(w => {
-                        if (w.id === dragInfo.wireId) {
-                            const newWp = [...w.waypoints];
-                            newWp[dragInfo.index] = { ...newWp[dragInfo.index], x: snappedPos.x, y: snappedPos.y };
-                            return { ...w, waypoints: newWp };
-                        }
-                        return w;
-                    }));
-                }
-
+                if(dragInfo?.type === 'comp') setComponents(prev => prev.map(c => c.id === dragInfo.id ? {...c, x: snapToGrid(pos.x - dragInfo.offsetX), y: snapToGrid(pos.y - dragInfo.offsetY)} : c));
+                if(dragInfo?.type === 'waypoint') setWires(prev => prev.map(w => w.id === dragInfo.wireId ? { ...w, waypoints: w.waypoints.map((wp,i) => i === dragInfo.index ? { ...wp, x: snapToGrid(pos.x), y: snapToGrid(pos.y) } : wp) } : w));
                 if(tempWire) setTempWire(prev => ({...prev, x2: pos.x, y2: pos.y}));
                 
                 let hit = null;
                 components.forEach(c => {
-                    const spec = SPECS[c.type];
-                    spec.terminals?.forEach(t => {
-                        const d = Math.hypot(pos.x - (c.x + t.x), pos.y - (c.y + spec.height + 5));
-                        if(d < 25) hit = { compId: c.id, termId: t.id };
+                    SPECS[c.type].terminals?.forEach(t => {
+                        const termY = t.y !== undefined ? t.y : SPECS[c.type].height + 5;
+                        if(Math.hypot(pos.x - (c.x + t.x), pos.y - (c.y + termY)) < 25) hit = { compId: c.id, termId: t.id };
                     });
                 });
                 setHoveredTerm(hit);
             };
 
-            const toggleSwitch = (id) => {
-                setComponents(prev => prev.map(c => 
-                    c.id === id ? { ...c, isOn: !(c.isOn !== undefined ? c.isOn : true) } : c
-                ));
+            const toggleSwitch = (id) => setComponents(prev => prev.map(c => c.id === id ? { ...c, isOn: c.isOn === false ? true : false } : c));
+            const deleteObj = (obj) => {
+                if(obj.type === 'comp') { setComponents(prev => prev.filter(c => c.id !== obj.id)); setWires(prev => prev.filter(w => w.from !== obj.id && w.to !== obj.id)); } 
+                else if (obj.type === 'wire') setWires(prev => prev.filter(w => w.id !== obj.id));
+                setSelectedObj(null);
             };
 
             const addComponent = (type) => {
-                const scrollLeft = canvasRef.current ? canvasRef.current.scrollLeft : 0;
-                const scrollTop = canvasRef.current ? canvasRef.current.scrollTop : 0;
-                
                 const newComp = { 
-                    id: Date.now().toString(), 
-                    type, 
-                    x: snapToGrid((200 + scrollLeft) / zoom), 
-                    y: snapToGrid((200 + scrollTop) / zoom), 
-                    watts: 100, 
-                    efficiency: 100, 
-                    capacity: 100, 
-                    soc: 50, 
-                    maxVoltage: 40
+                    id: Date.now().toString(), type, 
+                    x: snapToGrid((200 + (canvasRef.current?.scrollLeft||0)) / zoom), 
+                    y: snapToGrid((200 + (canvasRef.current?.scrollTop||0)) / zoom), 
+                    watts: type === COMPONENT_TYPES.PANEL ? 550 : 100, 
+                    capacityKW: 5, capacity: 100, soc: 50, maxVoltage: 40, isOn: true
                 };
-
-                // Breakers default to ON
-                if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(type)) {
-                    newComp.isOn = true;
-                }
-
                 setComponents(prev => [...prev, newComp]);
                 setSelectedObj(null);
             };
 
-            const deleteObj = (obj) => {
-                if(obj.type === 'comp') {
-                    setComponents(prev => prev.filter(c => c.id !== obj.id));
-                    setWires(prev => prev.filter(w => w.from !== obj.id && w.to !== obj.id));
-                } else if (obj.type === 'wire') {
-                    setWires(prev => prev.filter(w => w.id !== obj.id));
-                }
-                setSelectedObj(null);
-            };
-
-            const handleWireDoubleClick = (wireId, e) => {
-                if(e && e.stopPropagation) e.stopPropagation();
-                const pos = getLocalPos(e);
-                const snappedPos = { x: snapToGrid(pos.x), y: snapToGrid(pos.y) };
-                
-                setWires(prev => prev.map(w => {
-                    if (w.id === wireId) {
-                        let bestIdx = w.waypoints.length;
-                        let minDist = Infinity;
-                        const c1 = components.find(c => c.id === w.from);
-                        const c2 = components.find(c => c.id === w.to);
-                        if (!c1 || !c2) return w;
-                        
-                        const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
-                        const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
-                        const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
-                        const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
-                        
-                        const allPoints = [p1, ...w.waypoints, p2];
-                        
-                        for(let i=0; i<allPoints.length-1; i++) {
-                            const A = allPoints[i];
-                            const B = allPoints[i+1];
-                            const dist = Math.abs((B.y - A.y)*pos.x - (B.x - A.x)*pos.y + B.x*A.y - B.y*A.x) / Math.hypot(B.y-A.y, B.x-A.x);
-                            const dot = (pos.x - A.x)*(B.x - A.x) + (pos.y - A.y)*(B.y - A.y);
-                            const lenSq = (B.x - A.x)**2 + (B.y - A.y)**2;
-                            const param = lenSq !== 0 ? dot / lenSq : -1;
-                            if (param >= 0 && param <= 1 && dist < minDist) {
-                                minDist = dist;
-                                bestIdx = i;
-                            }
-                        }
-                        
-                        const newWp = [...w.waypoints];
-                        newWp.splice(bestIdx, 0, { id: Date.now(), x: snappedPos.x, y: snappedPos.y });
-                        return { ...w, waypoints: newWp };
-                    }
-                    return w;
-                }));
-            };
-
-            const handleWaypointDoubleClick = (wireId, wpIndex, e) => {
-                if(e && e.stopPropagation) e.stopPropagation();
-                setWires(prev => prev.map(w => {
-                    if (w.id === wireId) {
-                        const newWp = w.waypoints.filter((_, i) => i !== wpIndex);
-                        return { ...w, waypoints: newWp };
-                    }
-                    return w;
-                }));
-            };
-
             const selectedSpec = selectedObj?.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type] : null;
-
-            // Probe Tool Logic
             const probeInfo = useMemo(() => {
                 if(!isProbeMode || !hoveredTerm) return null;
-                // Direct lookup from the flat map in simResults
-                const voltage = simResults.terminalVoltages[`${hoveredTerm.compId}_${hoveredTerm.termId}`];
-                
-                return { 
-                    volts: voltage !== undefined ? voltage.toFixed(1) + 'V' : '0.0V',
-                    label: SPECS[components.find(c=>c.id===hoveredTerm.compId).type].terminals.find(t=>t.id===hoveredTerm.termId).label
-                };
-
+                const v = simResults.terminalVoltages[`${hoveredTerm.compId}_${hoveredTerm.termId}`];
+                return { volts: v !== undefined ? v.toFixed(1) + 'V' : '0.0V', label: SPECS[components.find(c=>c.id===hoveredTerm.compId).type].terminals.find(t=>t.id===hoveredTerm.termId).label };
             }, [hoveredTerm, simResults, isProbeMode, components]);
-
 
             return (
                 <div className="flex flex-col h-screen overflow-hidden" 
                      onPointerMove={handlePointerMove} 
                      onPointerUp={() => { 
                         if(tempWire && hoveredTerm) {
-                            const maxY = Math.max(tempWire.y1, tempWire.y2);
-                            const defaultY = snapToGrid(maxY + 40);
-                            const initWaypoints = [
-                                { id: Date.now() + 1, x: snapToGrid(tempWire.x1), y: defaultY },
-                                { id: Date.now() + 2, x: snapToGrid(tempWire.x2), y: defaultY }
-                            ];
-
-                            setWires(p => [...p, { 
-                                id: Date.now(), 
-                                from: tempWire.from, 
-                                fromTerm: tempWire.fromTerm, 
-                                to: hoveredTerm.compId, 
-                                toTerm: hoveredTerm.termId, 
-                                waypoints: initWaypoints
-                            }]);
+                            const initWaypoints = [ { id: Date.now()+1, x: snapToGrid(tempWire.x1), y: snapToGrid(Math.max(tempWire.y1, tempWire.y2) + 40) }, { id: Date.now()+2, x: snapToGrid(tempWire.x2), y: snapToGrid(Math.max(tempWire.y1, tempWire.y2) + 40) } ];
+                            setWires(p => [...p, { id: Date.now(), from: tempWire.from, fromTerm: tempWire.fromTerm, to: hoveredTerm.compId, toTerm: hoveredTerm.termId, waypoints: initWaypoints }]);
                         }
-                        setTempWire(null); 
-                        setDragInfo(null); 
+                        setTempWire(null); setDragInfo(null); 
                      }} 
-                     onClick={() => setSelectedObj(null)}
-                     onContextMenu={(e) => e.preventDefault()} // Block Context Menu
+                     onClick={() => setSelectedObj(null)} onContextMenu={(e) => e.preventDefault()}
                 >
-                    
-                    {/* Short Circuit Alert */}
                     {simResults.isShort && (
                          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
                             <div className="bg-red-600 text-white font-bold text-4xl p-10 rounded-2xl shadow-2xl border-4 border-white animate-pulse flex flex-col items-center short-circuit-alert">
-                                <Icon name="zap-off" size={64} className="mb-4" />
-                                <div>SHORT CIRCUIT!</div>
-                                <div className="text-xl mt-2">ไฟฟ้าลัดวงจร (ช็อต)</div>
+                                <Icon name="zap-off" size={64} className="mb-4" /><div>SHORT CIRCUIT!</div><div className="text-xl mt-2">ไฟฟ้าลัดวงจร (ช็อต)</div>
                             </div>
                         </div>
                     )}
 
-                    {/* Voltage Probe Tooltip */}
                     {isProbeMode && hoveredTerm && probeInfo && (
                         <div className="tooltip-probe" style={{left: mousePos.x, top: mousePos.y}}>
-                             <div className="text-xs text-gray-400 mb-1">{probeInfo.label}</div>
-                             <div className="text-2xl text-yellow-400">{probeInfo.volts}</div>
+                             <div className="text-xs text-gray-400 mb-1">{probeInfo.label}</div><div className="text-2xl text-yellow-400">{probeInfo.volts}</div>
                         </div>
                     )}
 
-                    {/* Horizontal Toolbar */}
-                    <div className="h-20 bg-slate-900 shadow-xl flex items-center px-4 gap-6 z-50 shrink-0 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center gap-3 border-r border-slate-700 pr-4 h-12">
-                            <div className="text-yellow-400 bg-slate-800 p-2 rounded-lg"><Icon name="zap" size={24} className="fill-current" /></div>
-                            <button onClick={() => setIsRunning(!isRunning)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all shadow-lg ${isRunning ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                                <Icon name={isRunning ? 'rotate-ccw' : 'play'} size={18} />
-                                <span className="whitespace-nowrap text-sm">{isRunning ? 'หยุด' : 'เริ่มจำลอง'}</span>
-                            </button>
-                            <button onClick={() => setMasterLoadOn(!masterLoadOn)} className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all shadow-lg ${masterLoadOn ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-700 text-slate-400'}`}>
-                                <Icon name="power" size={18} />
-                                <span className="whitespace-nowrap text-xs">โหลด {masterLoadOn ? 'ON' : 'OFF'}</span>
-                            </button>
-                            <button onClick={() => setIsProbeMode(!isProbeMode)} className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all shadow-lg ${isProbeMode ? 'bg-yellow-500 text-white ring-2 ring-yellow-200' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}>
-                                <Icon name="wrench" size={18} />
-                                <span className="whitespace-nowrap text-xs">{isProbeMode ? 'วัดไฟ ON' : 'วัดไฟ OFF'}</span>
-                            </button>
+                    {!isSidebarOpen && (
+                        <button onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }} className="absolute top-4 left-4 z-[60] bg-slate-900 text-white p-3 rounded-xl shadow-2xl border border-slate-700 hover:bg-slate-800 transition-all flex items-center justify-center">
+                            <Icon name="menu" size={28} />
+                        </button>
+                    )}
+
+                    <div className={`absolute top-0 left-0 h-full bg-slate-900 shadow-2xl z-[60] flex flex-col transition-transform duration-300 w-72 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+                            <div className="flex items-center gap-2 text-yellow-400 font-bold text-lg"><Icon name="zap" size={24} className="fill-current" /><span>เครื่องมืออุปกรณ์</span></div>
+                            <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800"><Icon name="chevron-left" size={24} /></button>
                         </div>
-                        <div className="flex flex-col border-r border-slate-700 pr-4 min-w-[120px]">
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">แสงแดด: {sunIntensity}%</span>
-                            <input type="range" min="0" max="100" value={sunIntensity} 
-                                onChange={(e) => setSunIntensity(parseInt(e.target.value))} 
-                                onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
-                                className="w-full mt-1 accent-yellow-400 cursor-pointer"
-                            />
+                        <div className="p-4 space-y-4 border-b border-slate-800 shrink-0">
+                            <button onClick={() => setIsRunning(!isRunning)} className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all shadow-lg border-2 ${isRunning ? 'bg-red-500 text-white border-red-400 hover:bg-red-600' : 'bg-green-600 text-white border-green-500 hover:bg-green-700'}`}>
+                                <Icon name={isRunning ? 'rotate-ccw' : 'play'} size={20} /><span className="text-lg">{isRunning ? 'หยุดจำลอง' : 'เริ่มจำลอง'}</span>
+                            </button>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={() => setMasterLoadOn(!masterLoadOn)} className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl font-bold transition-all shadow-md border ${masterLoadOn ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                                    <Icon name="power" size={18} /><span className="text-xs">โหลด {masterLoadOn ? 'ON' : 'OFF'}</span>
+                                </button>
+                                <button onClick={() => setIsProbeMode(!isProbeMode)} className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl font-bold transition-all shadow-md border ${isProbeMode ? 'bg-yellow-500 text-white border-yellow-400 ring-2 ring-yellow-500/50' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                                    <Icon name="wrench" size={18} /><span className="text-xs">วัดไฟ {isProbeMode ? 'ON' : 'OFF'}</span>
+                                </button>
+                            </div>
+                            <div className="bg-slate-800 p-3 rounded-xl border border-slate-700">
+                                <div className="flex justify-between items-center mb-2"><span className="text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1"><Icon name="sun" size={12}/> แสงแดด</span><span className="text-sm font-bold text-yellow-400">{sunIntensity}%</span></div>
+                                <input type="range" min="0" max="100" value={sunIntensity} onChange={(e) => setSunIntensity(parseInt(e.target.value))} className="w-full accent-yellow-400 cursor-pointer" />
+                            </div>
                         </div>
-                        <div 
-                            ref={toolbarRef}
-                            onWheel={(e) => {
-                                if (toolbarRef.current) {
-                                    toolbarRef.current.scrollLeft += e.deltaY + e.deltaX;
-                                }
-                            }}
-                            className="flex-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar py-2"
-                        >
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar pb-20">
+                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">เพิ่มอุปกรณ์</h3>
                             {Object.keys(SPECS).map(key => (
-                                <button key={key} onClick={() => addComponent(key)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-blue-600 text-white rounded-lg border border-slate-700 transition-all group shrink-0">
-                                    <Icon name={SPECS[key].icon} size={14} className="group-hover:scale-110" />
-                                    <span className="text-[11px] font-bold">{SPECS[key].label}</span>
+                                <button key={key} onClick={() => { addComponent(key); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 bg-slate-800 hover:bg-blue-600 hover:border-blue-500 text-slate-200 hover:text-white rounded-xl border border-slate-700 transition-all group text-left shadow-sm">
+                                    <div className="bg-slate-700 p-2 rounded-lg group-hover:bg-blue-500 transition-colors shadow-inner flex items-center justify-center"><Icon name={SPECS[key].icon} size={18} className="text-slate-300 group-hover:text-white" /></div>
+                                    <span className="text-sm font-bold flex-1">{SPECS[key].label}</span>
+                                    <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-blue-500 transition-colors"><Icon name="plus" size={12} className="text-slate-400 group-hover:text-white" /></div>
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Main Content Wrapper */}
                     <div className="flex-1 relative overflow-hidden h-full">
-
-                        {/* Zoom Controls - Larger Buttons for Tablet */}
                         <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-50 pointer-events-auto">
                             <button onClick={() => setZoom(z => Math.min(z + 0.1, 3))} className="bg-white p-4 rounded-full shadow-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"><Icon name="plus" size={28}/></button>
                             <button onClick={() => setZoom(1)} className="bg-white px-3 py-2 rounded-full shadow-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-bold transition-colors">{Math.round(zoom*100)}%</button>
                             <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="bg-white p-4 rounded-full shadow-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"><Icon name="minus" size={28}/></button>
                         </div>
 
-                        {/* Selection HUD */}
                         {selectedObj && (
-                            <div className="absolute top-4 right-4 z-40 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border-2 border-blue-400 w-64 animate-in slide-in-from-right duration-200 pointer-events-auto" onClick={e => e.stopPropagation()}>
+                            <div className="absolute top-4 right-4 z-40 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border-2 border-blue-400 w-64 pointer-events-auto" onClick={e => e.stopPropagation()}>
                                 <div className="flex justify-between items-center mb-3">
-                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                        <Icon name="settings" size={16}/> 
-                                        {selectedObj.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type]?.label : 'แก้ไขสายไฟ'}
-                                    </h3>
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="settings" size={16}/> {selectedObj.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type]?.label : 'แก้ไขสายไฟ'}</h3>
                                     <button onClick={() => deleteObj(selectedObj)} className="bg-red-50 text-red-500 p-2 rounded-full hover:bg-red-500 hover:text-white"><Icon name="trash-2" size={18} /></button>
                                 </div>
-                                
-                                {selectedObj.type === 'comp' && components.find(c => c.id === selectedObj.id) && selectedSpec?.editFields && (
+                                {selectedObj.type === 'comp' && selectedSpec?.editFields && (
                                     <div className="space-y-4">
-                                        {selectedSpec.editFields.map((fieldSpec, idx) => (
-                                            <div key={idx} className="space-y-1">
-                                                <div className="flex justify-between text-xs text-slate-500 font-bold uppercase">
-                                                    <span>{fieldSpec.label}</span>
-                                                    <span>{components.find(c => c.id === selectedObj.id)[fieldSpec.field]} {fieldSpec.unit}</span>
+                                        {selectedSpec.editFields.map((fieldSpec, idx) => {
+                                            const comp = components.find(c => c.id === selectedObj.id);
+                                            const val = comp[fieldSpec.field];
+                                            let displayVal = val + ' ' + fieldSpec.unit;
+                                            if (fieldSpec.field === 'watts' && val >= 1000) displayVal = (val/1000).toFixed(1) + ' kW';
+                                            
+                                            return (
+                                                <div key={idx} className="space-y-1">
+                                                    <div className="flex justify-between text-xs text-slate-500 font-bold uppercase">
+                                                        <span>{fieldSpec.label}</span><span>{displayVal}</span>
+                                                    </div>
+                                                    <input type="range" min={fieldSpec.min} max={fieldSpec.max} step={fieldSpec.step} value={val} 
+                                                        onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? { ...c, [fieldSpec.field]: parseInt(e.target.value) } : c))} 
+                                                        onPointerDown={(e) => e.stopPropagation()} 
+                                                        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-blue-600"
+                                                    />
                                                 </div>
-                                                <input 
-                                                    type="range" 
-                                                    min={fieldSpec.min} 
-                                                    max={fieldSpec.max} 
-                                                    step={fieldSpec.step} 
-                                                    value={components.find(c => c.id === selectedObj.id)[fieldSpec.field]} 
-                                                    onChange={(e) => setComponents(prev => prev.map(c => c.id === selectedObj.id ? { ...c, [fieldSpec.field]: parseInt(e.target.value) } : c))} 
-                                                    onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
-                                                    className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 accent-blue-600"
-                                                />
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
-
                                 {selectedObj.type === 'wire' && (
                                     <div className="text-center text-xs text-slate-500 space-y-1">
-                                        <p>ลากจุดสีน้ำเงินเพื่อจัดสาย</p>
-                                        <p className="text-blue-500 font-bold">แตะ 2 ครั้งเส้น = เพิ่มจุด</p>
-                                        <p className="text-red-500 font-bold mb-3">แตะ 2 ครั้งจุด = ลบจุด</p>
-                                        
+                                        <p>ลากจุดสีน้ำเงินเพื่อจัดสาย</p><p className="text-blue-500 font-bold">แตะ 2 ครั้งเส้น = เพิ่มจุด</p><p className="text-red-500 font-bold mb-3">แตะ 2 ครั้งจุด = ลบจุด</p>
                                         <div className="border-t pt-3">
                                             <p className="text-xs font-bold text-slate-500 mb-2 text-left">เปลี่ยนสีสายไฟ</p>
                                             <div className="flex flex-wrap gap-2 justify-center">
                                                 {WIRE_COLORS.map(c => {
-                                                    const isSelected = wires.find(w => w.id === selectedObj.id)?.color === c.hex;
-                                                    return (
-                                                        <button 
-                                                            key={c.hex} 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setWires(prev => prev.map(w => w.id === selectedObj.id ? { ...w, color: c.hex } : w));
-                                                            }}
-                                                            className={`w-8 h-8 rounded-full shadow-sm transition-transform hover:scale-110 ${isSelected ? 'ring-2 ring-offset-1 ring-slate-400 scale-110' : ''}`}
-                                                            style={{ backgroundColor: c.hex, border: c.hex === '#ffffff' ? '1px solid #e2e8f0' : 'none' }}
-                                                            title={c.label}
-                                                        />
-                                                    );
+                                                    const isSel = wires.find(w => w.id === selectedObj.id)?.color === c.hex;
+                                                    return <button key={c.hex} onClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(w => w.id === selectedObj.id ? { ...w, color: c.hex } : w)); }} className={`w-8 h-8 rounded-full shadow-sm transition-transform hover:scale-110 ${isSel ? 'ring-2 ring-offset-1 ring-slate-400 scale-110' : ''}`} style={{ backgroundColor: c.hex, border: c.hex === '#ffffff' ? '1px solid #e2e8f0' : 'none' }} title={c.label} />
                                                 })}
-                                                <button 
-                                                     onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setWires(prev => prev.map(w => w.id === selectedObj.id ? { ...w, color: undefined } : w)); 
-                                                     }}
-                                                     className="w-8 h-8 rounded-full border border-slate-300 bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                                                     title="รีเซ็ตสี"
-                                                >
-                                                    <Icon name="rotate-ccw" size={14} />
-                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(w => w.id === selectedObj.id ? { ...w, color: undefined } : w)); }} className="w-8 h-8 rounded-full border border-slate-300 bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="รีเซ็ตสี"><Icon name="rotate-ccw" size={14} /></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1424,104 +930,50 @@
                             </div>
                         )}
 
-                        {/* Scrollable Canvas Area */}
-                        <div ref={canvasRef} 
-                             className={`w-full h-full overflow-auto relative bg-slate-100 touch-none ${isProbeMode ? 'cursor-help' : ''}`}
-                        >
+                        <div ref={canvasRef} className={`w-full h-full overflow-auto relative bg-slate-100 touch-none ${isProbeMode ? 'cursor-help' : ''}`}>
                             <div className="relative grid-bg" style={{width: 3000, height: 2000, transform: `scale(${zoom})`, transformOrigin: 'top left'}}>
                                 <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
                                     {wires.map(w => {
                                         const c1 = components.find(c => c.id === w.from); const c2 = components.find(c => c.id === w.to);
                                         if(!c1 || !c2) return null;
-                                        const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm);
-                                        const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
-                                        const p1 = { x: c1.x + t1.x, y: c1.y + SPECS[c1.type].height + 5 };
-                                        const p2 = { x: c2.x + t2.x, y: c2.y + SPECS[c2.type].height + 5 };
+                                        const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm); const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
+                                        const p1 = { x: c1.x + t1.x, y: c1.y + (t1.y !== undefined ? t1.y : SPECS[c1.type].height + 5) }; 
+                                        const p2 = { x: c2.x + t2.x, y: c2.y + (t2.y !== undefined ? t2.y : SPECS[c2.type].height + 5) };
                                         const isSel = selectedObj?.type === 'wire' && selectedObj.id === w.id;
-                                        
-                                        const waypoints = w.waypoints || [];
-                                        const path = getPolylinePath(p1, waypoints, p2);
-                                        const wireColor = w.color || t1.color; // Use custom color if set
-
+                                        const path = getPolylinePath(p1, w.waypoints || [], p2);
                                         return (
                                             <g key={w.id} className="pointer-events-auto">
-                                                {/* Thick transparent stroke for easier selection & double click */}
-                                                <path d={path} stroke="transparent" strokeWidth="20" fill="none" 
-                                                      className="cursor-pointer touch-none"
-                                                      onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }}
-                                                      onDoubleClick={(e) => handleWireDoubleClick(w.id, e)}
-                                                      onPointerDown={(e) => {
-                                                          const now = Date.now();
-                                                          if (now - lastTapRef.current.time < 300 && lastTapRef.current.id === `wire-${w.id}`) {
-                                                              handleWireDoubleClick(w.id, e);
-                                                              lastTapRef.current = { time: 0, id: null };
-                                                          } else {
-                                                              lastTapRef.current = { time: now, id: `wire-${w.id}` };
-                                                          }
-                                                      }}
-                                                />
-                                                {/* Visible wire */}
+                                                <path d={path} stroke="transparent" strokeWidth="20" fill="none" className="cursor-pointer touch-none" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }} onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: [...(old.waypoints||[]), {id: Date.now(), x: snapToGrid(getLocalPos(e).x), y: snapToGrid(getLocalPos(e).y)}] } : old)); }} />
                                                 <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 10 : 6} fill="none" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none" />
-                                                <path d={path} stroke={isSel ? "#fbbf24" : wireColor} strokeWidth={isSel ? 4 : 2} fill="none" strokeLinecap="round" strokeLinejoin="round" className="wire-shadow pointer-events-none" />
-                                                
-                                                {/* Waypoint Handles - Only visible when selected */}
-                                                {isSel && waypoints.map((wp, idx) => (
-                                                    <g 
-                                                        key={wp.id}
-                                                        transform={`translate(${wp.x}, ${wp.y})`}
-                                                        onPointerDown={(e) => { 
-                                                            e.stopPropagation(); 
-                                                            e.target.setPointerCapture(e.pointerId); // Prevent scroll
-                                                            const now = Date.now();
-                                                            if (now - lastTapRef.current.time < 300 && lastTapRef.current.id === `wp-${wp.id}`) {
-                                                                handleWaypointDoubleClick(w.id, idx, e);
-                                                                lastTapRef.current = { time: 0, id: null };
-                                                            } else {
-                                                                lastTapRef.current = { time: now, id: `wp-${wp.id}` };
-                                                                setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); 
-                                                            }
-                                                        }}
-                                                        onDoubleClick={(e) => handleWaypointDoubleClick(w.id, idx, e)}
-                                                        className="cursor-move touch-none"
-                                                    >
-                                                        <circle r="12" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-sm hover:scale-125 transition-transform" />
-                                                    </g>
+                                                <path d={path} stroke={isSel ? "#fbbf24" : (w.color || t1.color)} strokeWidth={isSel ? 4 : 2} fill="none" strokeLinecap="round" strokeLinejoin="round" className="wire-shadow pointer-events-none" />
+                                                {isSel && (w.waypoints || []).map((wp, idx) => (
+                                                    <g key={wp.id} transform={`translate(${wp.x}, ${wp.y})`} onPointerDown={(e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); }} onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: old.waypoints.filter((_, i) => i !== idx) } : old)); }} className="cursor-move touch-none"><circle r="12" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-sm hover:scale-125 transition-transform" /></g>
                                                 ))}
                                             </g>
                                         );
                                     })}
-                                    {tempWire && (
-                                        <g>
-                                           <path d={`M ${tempWire.x1} ${tempWire.y1} L ${tempWire.x2} ${tempWire.y2}`} stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 5" fill="none" />
-                                           <circle cx={tempWire.x2} cy={tempWire.y2} r="4" fill="#fbbf24" />
-                                        </g>
-                                    )}
+                                    {tempWire && <g><path d={`M ${tempWire.x1} ${tempWire.y1} L ${tempWire.x2} ${tempWire.y2}`} stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 5" fill="none" /><circle cx={tempWire.x2} cy={tempWire.y2} r="4" fill="#fbbf24" /></g>}
                                 </svg>
 
                                 {components.map(comp => {
-                                    const spec = SPECS[comp.type];
-                                    const state = simResults.states[comp.id] || {};
+                                    const spec = SPECS[comp.type]; const state = simResults.states[comp.id] || {};
                                     const isSel = selectedObj?.type === 'comp' && selectedObj.id === comp.id;
                                     const isCharging = Object.values(simResults.states).some(s => s.isCharging); 
 
                                     return (
                                         <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
-                                            <div onPointerDown={(e) => { 
-                                                e.stopPropagation(); 
-                                                e.target.setPointerCapture(e.pointerId); // Prevent scroll
-                                                const pos = getLocalPos(e); 
-                                                setDragInfo({ type: 'comp', id: comp.id, offsetX: pos.x-comp.x, offsetY: pos.y-comp.y }); 
-                                                setSelectedObj({ type: 'comp', id: comp.id }); 
-                                            }} className={`relative cursor-move touch-none transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
+                                            <div onPointerDown={(e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); setDragInfo({ type: 'comp', id: comp.id, offsetX: getLocalPos(e).x-comp.x, offsetY: getLocalPos(e).y-comp.y }); setSelectedObj({ type: 'comp', id: comp.id }); }} className={`relative cursor-move touch-none transition-all ${isSel ? 'ring-4 ring-blue-500 ring-offset-4 rounded-xl shadow-2xl scale-105' : ''}`}>
                                                 {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
                                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
-                                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} watts={comp.watts || 100} />}
-                                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} isCharging={isCharging && comp.soc < 100} />}
+                                                    {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} watts={comp.watts || 550} />}
+                                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} capacity={comp.capacity !== undefined ? comp.capacity : 100} isCharging={isCharging && comp.soc < 100} />}
                                                     {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
+                                                    {comp.type.startsWith('inv_') && <AdvancedInverterVisual width={spec.width} height={spec.height} label={spec.label} capacityKW={spec.capacityKW} isPowered={state.isPowered} isCharging={state.isCharging} isOverloaded={state.isOverloaded} is3Phase={comp.type.includes('_3p')} />}
                                                     {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
-                                                    {comp.type === COMPONENT_TYPES.MOTOR && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                                    {comp.type === COMPONENT_TYPES.BULB && <BulbVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
-                                                    {comp.type === COMPONENT_TYPES.SOCKET && <SocketVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.MOTOR_AC && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label="AC MOTOR" />}
+                                                    {comp.type === COMPONENT_TYPES.MOTOR_DC && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label="DC MOTOR" />}
+                                                    {(comp.type === COMPONENT_TYPES.BULB_AC || comp.type === COMPONENT_TYPES.BULB_DC) && <BulbVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label={spec.label.split(' ')[0]} />}
+                                                    {comp.type === COMPONENT_TYPES.SOCKET_AC && <SocketVisual width={spec.width} height={spec.height} isPowered={state.isPowered} />}
                                                     {comp.type === COMPONENT_TYPES.DC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="DC SPD" color="#991b1b" />}
                                                     {comp.type === COMPONENT_TYPES.AC_SURGE && <SurgeVisual width={spec.width} height={spec.height} label="AC SPD" color="#166534" />}
                                                     {comp.type === COMPONENT_TYPES.COMBINER_BOX && <CombinerBoxVisual width={spec.width} height={spec.height} />}
@@ -1533,21 +985,15 @@
                                                     {comp.type === COMPONENT_TYPES.ENERGY_METER && <AcMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
                                                     {comp.type === COMPONENT_TYPES.DC_WATT_METER && <DcWattMeterVisual width={spec.width} height={spec.height} volts={state.volts || 0} watts={state.watts || 0} />}
                                                     
-                                                    {/* Manual Breakers */}
-                                                    {comp.type === COMPONENT_TYPES.CONSUMER_MAIN && <ConsumerMainVisual width={spec.width} height={spec.height} isOn={comp.isOn !== undefined ? comp.isOn : true} onToggle={() => toggleSwitch(comp.id)} isInputPowered={state.isInputPowered} />}
-                                                    {comp.type === COMPONENT_TYPES.CONSUMER_SUB && <ConsumerSubVisual width={spec.width} height={spec.height} isOn={comp.isOn !== undefined ? comp.isOn : true} onToggle={() => toggleSwitch(comp.id)} isInputPowered={state.isInputPowered} />}
-                                                    {(comp.type === COMPONENT_TYPES.BREAKER_DC || comp.type === COMPONENT_TYPES.AC_BREAKER) && <BreakerVisual width={spec.width} height={spec.height} label={spec.label} isOn={comp.isOn !== undefined ? comp.isOn : true} onToggle={() => toggleSwitch(comp.id)} isInputPowered={state.isInputPowered} />}
-
-                                                    {/* Default Box Visual for others */}
-                                                    {['inverter','ac_source'].includes(comp.type) && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.CONSUMER_MAIN && <ConsumerMainVisual width={spec.width} height={spec.height} isOn={comp.isOn !== false} onToggle={() => toggleSwitch(comp.id)} isInputPowered={state.isInputPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.CONSUMER_SUB && <ConsumerSubVisual width={spec.width} height={spec.height} isOn={comp.isOn !== false} onToggle={() => toggleSwitch(comp.id)} isInputPowered={state.isInputPowered} />}
+                                                    {(comp.type === COMPONENT_TYPES.BREAKER_DC || comp.type === COMPONENT_TYPES.AC_BREAKER) && <BreakerVisual width={spec.width} height={spec.height} label={spec.label} isOn={comp.isOn !== false} onToggle={() => toggleSwitch(comp.id)} isInputPowered={state.isInputPowered} />}
+                                                    {comp.type === COMPONENT_TYPES.AC_SOURCE && <BoxVisual width={spec.width} height={spec.height} label={spec.label} isPowered={state.isPowered} />}
                                                     
-                                                    {spec.terminals?.map(t => (
-                                                        <Terminal key={t.id} x={t.x} y={spec.height + 5} color={t.color} label={t.label} 
-                                                            isProbeMode={isProbeMode}
-                                                            isHovered={hoveredTerm?.compId === comp.id && hoveredTerm?.termId === t.id} 
-                                                            onPointerDown={(e) => { const pos = getLocalPos(e); setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x+t.x, y1: comp.y+spec.height+5, x2: pos.x, y2: pos.y }); }} 
-                                                        />
-                                                    ))}
+                                                    {spec.terminals?.map(t => {
+                                                        const termY = t.y !== undefined ? t.y : spec.height + 5;
+                                                        return <Terminal key={t.id} x={t.x} y={termY} isTop={t.labelPos === 'top'} color={t.color} label={t.label} isProbeMode={isProbeMode} isHovered={hoveredTerm?.compId === comp.id && hoveredTerm?.termId === t.id} onPointerDown={(e) => setTempWire({ from: comp.id, fromTerm: t.id, x1: comp.x+t.x, y1: comp.y+termY, x2: getLocalPos(e).x, y2: getLocalPos(e).y })} />;
+                                                    })}
                                                 </svg>
                                             </div>
                                         </div>
@@ -1562,24 +1008,5 @@
 
         ReactDOM.createRoot(document.getElementById("root")).render(<App />);
     </script>
-    	</script>
-	    // ป้องกันไม่ให้คลิกลิงก์แล้วเด้งออกไปเปิดใน Safari
-    (function(document,navigator,standalone) {
-        if ((standalone in navigator) && navigator[standalone]) {
-            var curnode, location=document.location, stop=/^(a|html)$/i;
-            document.addEventListener('click', function(e) {
-                curnode=e.target;
-                while (!(stop).test(curnode.nodeName)) {
-                    curnode=curnode.parentNode;
-                }
-                if('href' in curnode && ( curnode.href.indexOf('http') || ~curnode.href.indexOf(location.host) ) ) {
-                    e.preventDefault();
-                    location.href = curnode.href;
-                }
-            },false);
-        }
-    })(document,window.navigator,'standalone');
-</script>
-
 </body>
 </html>
