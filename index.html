@@ -538,6 +538,11 @@
                 const noiseW = (Math.random() - 0.5) * 5;   
                 let systemBatVoltage = 0;
                 let isSystemCharging = false;
+                
+                // --- คำนวณพลังงานรวมของแผงล่วงหน้าเพื่อใช้ในการจำลองแรงดัน ---
+                const totalPVWattsCapacity = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 550), 0);
+                const estPvAvailableWatts = totalPVWattsCapacity * (sunIntensity/100);
+                const prevBatteryDrain = simResultsRef.current.batteryDrainWatts || 0;
 
                 // Set initial Voltages
                 components.forEach(c => {
@@ -549,9 +554,25 @@
                     } else if (c.type === COMPONENT_TYPES.BATTERY && (c.soc || 50) > 0) {
                         const pos = getNet(`${c.id}_pos`); const neg = getNet(`${c.id}_neg`);
                         if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
-                        let baseV = 11.8 + ((c.soc||50) / 100) * 1.0; 
-                        netVoltages.set(pos, baseV); 
-                        systemBatVoltage = baseV;
+                        
+                        // 1. แรงดันพื้นฐานตาม SOC (มาตรฐานแบตเตอรี่ Lead-Acid 11.5V - 12.8V)
+                        let vBat = 11.5 + ((c.soc||50) / 100) * 1.3; 
+                        
+                        // 2. จำลองแรงดันตกคร่อม (Voltage Sag) ตามโหลดดึงกระแส (Internal Resistance)
+                        if (prevBatteryDrain > 0) {
+                            vBat -= (prevBatteryDrain / 1000) * 0.25; // โวลต์ตก 0.25V ทุกๆ โหลด 1000W
+                        }
+
+                        // 3. จำลองแรงดันชาร์จ (Charging Voltage)
+                        if (estPvAvailableWatts > prevBatteryDrain + 50) {
+                            vBat += 0.5 + Math.min(1.0, (estPvAvailableWatts - prevBatteryDrain) / 2000); 
+                            vBat = Math.min(vBat, 14.4); // ล็อกแรงดันชาร์จสูงสุดที่ 14.4V ตามมาตรฐาน
+                        }
+                        
+                        vBat = Math.max(10.5, vBat); // ตัดการทำงานที่ 10.5V (Low Voltage Disconnect)
+
+                        netVoltages.set(pos, vBat); 
+                        systemBatVoltage = vBat;
                     } else if (c.type === COMPONENT_TYPES.AC_SOURCE) {
                         const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
                         if(n) netVoltages.set(n, 0); 
@@ -606,14 +627,13 @@
                             const vpv = netVoltages.get(pvp) || 0; const vbat = netVoltages.get(batp) || 0;
                             const isCharging = vpv > (vbat + 1.0) && vpv > 13;
                             if(isCharging) isSystemCharging = true;
-                            const totalPVWatts = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
                             
                             if(isCharging) {
                                 if(batp) netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100)*1.0 + noiseV));
                                 if(loadp) netVoltages.set(loadp, 12.0 + noiseV); 
                             } else if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
                             
-                            compStates[c.id] = { ...compStates[c.id], isCharging, hasLoad: wires.some(w => w.from === c.id && w.fromTerm === 'load_pos' || w.to === c.id && w.toTerm === 'load_pos') && (vbat > 10 || isCharging), pvInputWatts: isCharging ? (sunIntensity/100) * totalPVWatts : 0 };
+                            compStates[c.id] = { ...compStates[c.id], isCharging, hasLoad: wires.some(w => w.from === c.id && w.fromTerm === 'load_pos' || w.to === c.id && w.toTerm === 'load_pos') && (vbat > 10 || isCharging), pvInputWatts: isCharging ? estPvAvailableWatts : 0 };
                         }
 
                         if (c.type.startsWith('inv_')) {
@@ -711,23 +731,29 @@
                         const invCapacityW = (SPECS[inv.type].capacityKW || 5) * 1000;
                         const isOverloaded = totalAcLoad > invCapacityW;
 
-                        const dcDraw = (totalAcLoad / 0.9) + 10;
+                        // คำนวณ DC Draw ตามมาตรฐาน: กำลังไฟขาออก / ประสิทธิภาพ + Standby Loss
+                        const INVERTER_EFFICIENCY = 0.90; // ประสิทธิภาพอินเวอร์เตอร์มาตรฐาน 90%
+                        const STANDBY_POWER = 15; // กินไฟสแตนด์บาย 15W
+                        const dcDraw = totalAcLoad > 0 ? (totalAcLoad / INVERTER_EFFICIENCY) + STANDBY_POWER : STANDBY_POWER;
+
                         compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: totalAcLoad, dcInputWatts: dcDraw, isOverloaded };
-                        globalBatteryDrain += dcDraw; 
+                        
+                        // หาก Inverter เปิดอยู่ ให้รวมเป็นโหลดของแบตเตอรี่
+                        if (compStates[inv.id].isPowered) {
+                            globalBatteryDrain += dcDraw; 
+                        }
                     } else {
                         compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: 0, dcInputWatts: 0, isOverloaded: false };
                     }
                 });
 
-                // --- คำนวณค่าแสดงผลสำหรับ Meter ---
+                // --- คำนวณค่าแสดงผลสำหรับ Meter (ยึดหลัก P = V * I) ---
                 let totalAcLoadForMeter = 0;
                 components.forEach(load => {
                     if(['bulb_ac', 'socket_ac', 'motor_ac'].includes(load.type) && compStates[load.id]?.activeWatts) {
                         totalAcLoadForMeter += compStates[load.id].activeWatts;
                     }
                 });
-
-                const totalPVWatts = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 100), 0);
 
                 components.forEach(c => {
                     // อัปเดตหน้าจอ DC Meter
@@ -738,10 +764,10 @@
                         
                         let w = 0;
                         if (v > 15) {
-                            // หากแรงดันสูง มักจะเป็นฝั่งแผง PV
-                            w = isSystemCharging ? (sunIntensity/100) * totalPVWatts : 0;
+                            // วัดไฟฝั่ง PV: คิดจากกำลังผลิตที่ดึงมาใช้งานจริง (เผื่อ Loss สายไฟ 5%)
+                            w = isSystemCharging ? estPvAvailableWatts * 0.95 : 0;
                         } else if (v > 5) {
-                            // หากแรงดันอยู่ในช่วง 12V มักจะเป็นฝั่งแบตเตอรี่และโหลด
+                            // วัดไฟฝั่ง แบต/โหลด: แสดงโหลดรวม DC ทั้งระบบ
                             w = globalBatteryDrain;
                         }
                         compStates[c.id] = { ...compStates[c.id], volts: v, watts: w };
@@ -795,10 +821,22 @@
             };
 
             const addComponent = (type) => {
+                const container = canvasRef.current;
+                let cx = 300, cy = 300;
+                if (container) {
+                    const rect = container.getBoundingClientRect();
+                    // คำนวณหาจุดกึ่งกลางของหน้าจอที่มองเห็นอยู่
+                    cx = (rect.width / 2 + container.scrollLeft) / zoom;
+                    cy = (rect.height / 2 + container.scrollTop) / zoom;
+                }
+                const spec = SPECS[type];
+                const w = spec?.width || 100;
+                const h = spec?.height || 100;
+                
                 const newComp = { 
                     id: Date.now().toString(), type, 
-                    x: snapToGrid((200 + (canvasRef.current?.scrollLeft||0)) / zoom), 
-                    y: snapToGrid((200 + (canvasRef.current?.scrollTop||0)) / zoom), 
+                    x: snapToGrid(cx - w/2), 
+                    y: snapToGrid(cy - h/2), 
                     watts: type === COMPONENT_TYPES.PANEL ? 550 : 100, 
                     capacityKW: 5, capacity: 100, soc: 50, maxVoltage: 40, isOn: true
                 };
@@ -934,8 +972,18 @@
                                     </div>
                                 )}
                                 {selectedObj.type === 'wire' && (
-                                    <div className="text-center text-xs text-slate-500 space-y-1">
-                                        <p>ลากจุดสีน้ำเงินเพื่อจัดสาย</p><p className="text-blue-500 font-bold">แตะ 2 ครั้งเส้น = เพิ่มจุด</p><p className="text-red-500 font-bold mb-3">แตะ 2 ครั้งจุด = ลบจุด</p>
+                                    <div className="text-center text-xs text-slate-500 space-y-3">
+                                        <div className="bg-slate-50 p-2 rounded-lg text-left space-y-2 border border-slate-200">
+                                            <p className="flex items-center gap-2"><Icon name="plus-circle" size={14} className="text-yellow-500"/> <span>คลิกจุด <b className="text-yellow-600">สีเหลือง</b> เพื่อ <b>เพิ่มจุด</b> จัดสาย</span></p>
+                                            <p className="flex items-center gap-2"><Icon name="move" size={14} className="text-blue-500"/> <span>ลากจุด <b className="text-blue-600">สีน้ำเงิน</b> เพื่อ <b>เลื่อนจัดสาย</b></span></p>
+                                            <p className="flex items-center gap-2 text-red-500"><Icon name="x-circle" size={14}/> <span>แตะ 2 ครั้งที่จุดเพื่อ <b>ลบจุด</b></span></p>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(w => w.id === selectedObj.id ? { ...w, waypoints: [] } : w)); }}
+                                            className="w-full py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-500 hover:text-white transition-colors font-bold text-xs flex items-center justify-center gap-1 border border-red-200"
+                                        >
+                                            <Icon name="trash-2" size={14} /> ล้างจุดจัดสายทั้งหมด (ดึงสายตึง)
+                                        </button>
                                         <div className="border-t pt-3">
                                             <p className="text-xs font-bold text-slate-500 mb-2 text-left">เปลี่ยนสีสายไฟ</p>
                                             <div className="flex flex-wrap gap-2 justify-center">
@@ -964,11 +1012,47 @@
                                         const path = getPolylinePath(p1, w.waypoints || [], p2);
                                         return (
                                             <g key={w.id} className="pointer-events-auto">
-                                                <path d={path} stroke="transparent" strokeWidth="20" fill="none" className="cursor-pointer touch-none" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }} onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: [...(old.waypoints||[]), {id: Date.now(), x: snapToGrid(getLocalPos(e).x), y: snapToGrid(getLocalPos(e).y)}] } : old)); }} />
+                                                <path d={path} stroke="transparent" strokeWidth="30" fill="none" className="cursor-pointer touch-none" onClick={(e) => { e.stopPropagation(); setSelectedObj({ type: 'wire', id: w.id }); }} onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: [...(old.waypoints||[]), {id: Date.now(), x: snapToGrid(getLocalPos(e).x), y: snapToGrid(getLocalPos(e).y)}] } : old)); }} />
                                                 <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 10 : 6} fill="none" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none" />
                                                 <path d={path} stroke={isSel ? "#fbbf24" : (w.color || t1.color)} strokeWidth={isSel ? 4 : 2} fill="none" strokeLinecap="round" strokeLinejoin="round" className="wire-shadow pointer-events-none" />
+                                                
+                                                {/* จุดสีเหลืองสำหรับคลิกเพิ่มจุดจัดสายตรงกลาง (Midpoint Adders) */}
+                                                {isSel && (() => {
+                                                    const pts = [p1, ...(w.waypoints || []), p2];
+                                                    const midpoints = [];
+                                                    for(let i=0; i<pts.length-1; i++) {
+                                                        midpoints.push({ x: (pts[i].x + pts[i+1].x) / 2, y: (pts[i].y + pts[i+1].y) / 2, insertIndex: i });
+                                                    }
+                                                    return midpoints.map((mp, idx) => (
+                                                        <g key={`mid-${idx}`} transform={`translate(${mp.x}, ${mp.y})`} 
+                                                           onClick={(e) => {
+                                                               e.stopPropagation();
+                                                               const newWp = { id: Date.now(), x: snapToGrid(mp.x), y: snapToGrid(mp.y) };
+                                                               const newWaypoints = [...(w.waypoints || [])];
+                                                               newWaypoints.splice(mp.insertIndex, 0, newWp);
+                                                               setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: newWaypoints } : old));
+                                                           }}
+                                                           className="cursor-pointer touch-none group">
+                                                            {/* Hit Area แบบคงที่ ป้องกันอาการเด้ง */}
+                                                            <circle r="20" fill="transparent" /> 
+                                                            <g className="transition-transform group-hover:scale-125 pointer-events-none">
+                                                                <circle r="9" fill="#fbbf24" stroke="white" strokeWidth="2" className="shadow-md" />
+                                                                <path d="M -4 0 L 4 0 M 0 -4 L 0 4" stroke="white" strokeWidth="2" />
+                                                            </g>
+                                                        </g>
+                                                    ));
+                                                })()}
+
+                                                {/* จุดสีน้ำเงินสำหรับลากจัดสาย (Waypoint Handles) */}
                                                 {isSel && (w.waypoints || []).map((wp, idx) => (
-                                                    <g key={wp.id} transform={`translate(${wp.x}, ${wp.y})`} onPointerDown={(e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); }} onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: old.waypoints.filter((_, i) => i !== idx) } : old)); }} className="cursor-move touch-none"><circle r="12" fill="white" stroke="#3b82f6" strokeWidth="2" className="shadow-sm hover:scale-125 transition-transform" /></g>
+                                                    <g key={wp.id} transform={`translate(${wp.x}, ${wp.y})`} 
+                                                       onPointerDown={(e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); }} 
+                                                       onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: old.waypoints.filter((_, i) => i !== idx) } : old)); }} 
+                                                       className="cursor-move touch-none group">
+                                                        {/* Hit Area แบบคงที่ ป้องกันอาการเด้ง */}
+                                                        <circle r="24" fill="transparent" /> 
+                                                        <circle r="14" fill="white" stroke="#3b82f6" strokeWidth="3" className="shadow-md transition-transform group-hover:scale-110 pointer-events-none" />
+                                                    </g>
                                                 ))}
                                             </g>
                                         );
