@@ -31,7 +31,7 @@
         }
         .grid-bg {
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 20px 20px; /* Grid Size 20px */
+            background-size: 20px 20px;
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -124,8 +124,17 @@
         // --- Configuration ---
         const COMPONENT_TYPES = {
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', 
-            INV_3KW_1P: 'inv_3kw_1p', INV_5KW_1P: 'inv_5kw_1p', INV_10KW_1P: 'inv_10kw_1p',
-            INV_5KW_3P: 'inv_5kw_3p', INV_10KW_3P: 'inv_10kw_3p',
+            
+            // --- New Inverter Types ---
+            INV_ON_3KW_1P: 'inv_on_3kw_1p', INV_ON_5KW_1P: 'inv_on_5kw_1p', INV_ON_10KW_1P: 'inv_on_10kw_1p',
+            INV_ON_5KW_3P: 'inv_on_5kw_3p', INV_ON_10KW_3P: 'inv_on_10kw_3p',
+            
+            INV_OFF_3KW_1P: 'inv_off_3kw_1p', INV_OFF_5KW_1P: 'inv_off_5kw_1p', INV_OFF_10KW_1P: 'inv_off_10kw_1p',
+            INV_OFF_5KW_3P: 'inv_off_5kw_3p', INV_OFF_10KW_3P: 'inv_off_10kw_3p',
+            
+            INV_HYB_3KW_1P: 'inv_hyb_3kw_1p', INV_HYB_5KW_1P: 'inv_hyb_5kw_1p', INV_HYB_10KW_1P: 'inv_hyb_10kw_1p',
+            INV_HYB_5KW_3P: 'inv_hyb_5kw_3p', INV_HYB_10KW_3P: 'inv_hyb_10kw_3p',
+
             BREAKER_DC: 'breaker_dc', FUSE: 'fuse', AC_FUSE: 'ac_fuse', DC_SURGE: 'dc_surge', AC_BREAKER: 'ac_breaker',
             AC_SURGE: 'ac_surge', ENERGY_METER: 'energy_meter', DC_WATT_METER: 'dc_watt_meter', AC_SOURCE: 'ac_source', 
             COMBINER_BOX: 'combiner_box', GROUND_BAR: 'ground_bar', 
@@ -165,26 +174,29 @@
                 ]
             },
             [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 200, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 80, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 100, color: COLORS.NEG}, {id: 'load_pos', label: 'LOAD+', x: 140, color: COLORS.POS}, {id: 'load_neg', label: 'LOAD-', x: 160, color: COLORS.NEG}] },
-            [COMPONENT_TYPES.INV_3KW_1P]: { 
-                label: 'อินเวอร์เตอร์ 3kW (1-Phase)', icon: 'cpu', width: 160, height: 130, capacityKW: 3,
-                terminals: [{id: 'pv1_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 70, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 90, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 120, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 140, color: COLORS.AC_N}]
-            },
-            [COMPONENT_TYPES.INV_5KW_1P]: { 
-                label: 'อินเวอร์เตอร์ 5kW (1-Phase)', icon: 'cpu', width: 200, height: 130, capacityKW: 5,
-                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}]
-            },
-            [COMPONENT_TYPES.INV_10KW_1P]: { 
-                label: 'อินเวอร์เตอร์ 10kW (1-Phase)', icon: 'cpu', width: 200, height: 130, capacityKW: 10,
-                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}]
-            },
-            [COMPONENT_TYPES.INV_5KW_3P]: { 
-                label: 'อินเวอร์เตอร์ 5kW (3-Phase)', icon: 'cpu', width: 240, height: 130, capacityKW: 5,
-                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 160, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 180, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 200, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 220, color: COLORS.AC_N}]
-            },
-            [COMPONENT_TYPES.INV_10KW_3P]: { 
-                label: 'อินเวอร์เตอร์ 10kW (3-Phase)', icon: 'cpu', width: 240, height: 130, capacityKW: 10,
-                terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 160, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 180, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 200, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 220, color: COLORS.AC_N}]
-            },
+            
+            // --- On-Grid Inverters ---
+            [COMPONENT_TYPES.INV_ON_3KW_1P]: { label: 'On-Grid 3kW (1P)', icon: 'cpu', width: 160, height: 130, capacityKW: 3, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV+', x: 30, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 60, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 100, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 130, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_ON_5KW_1P]: { label: 'On-Grid 5kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 5, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 50, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 80, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 110, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 150, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_ON_10KW_1P]: { label: 'On-Grid 10kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 10, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 50, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 80, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 110, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 150, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_ON_5KW_3P]: { label: 'On-Grid 5kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 5, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 140, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 165, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 190, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_ON_10KW_3P]: { label: 'On-Grid 10kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 10, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 140, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 165, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 190, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
+
+            // --- Off-Grid Inverters ---
+            [COMPONENT_TYPES.INV_OFF_3KW_1P]: { label: 'Off-Grid 3kW (1P)', icon: 'cpu', width: 160, height: 130, capacityKW: 3, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 70, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 90, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 120, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 140, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_OFF_5KW_1P]: { label: 'Off-Grid 5kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 5, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_OFF_10KW_1P]: { label: 'Off-Grid 10kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 10, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_OFF_5KW_3P]: { label: 'Off-Grid 5kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 5, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_OFF_10KW_3P]: { label: 'Off-Grid 10kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 10, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
+
+            // --- Hybrid Inverters ---
+            [COMPONENT_TYPES.INV_HYB_3KW_1P]: { label: 'Hybrid 3kW (1P)', icon: 'cpu', width: 160, height: 130, capacityKW: 3, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 70, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 90, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 120, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 140, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_HYB_5KW_1P]: { label: 'Hybrid 5kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 5, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_HYB_10KW_1P]: { label: 'Hybrid 10kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 10, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_HYB_5KW_3P]: { label: 'Hybrid 5kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 5, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
+            [COMPONENT_TYPES.INV_HYB_10KW_3P]: { label: 'Hybrid 10kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 10, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
+
+
             [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 40, color: COLORS.POS}, {id: 'in_2', label: 'เข้า', x: 60, color: COLORS.NEG}, {id: 'out_1', label: 'ออก', x: 80, color: COLORS.POS}, {id: 'out_2', label: 'ออก', x: 100, color: COLORS.NEG}] },
             [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 40, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.DC_WATT_METER]: { label: 'DC Meter', icon: 'activity', width: 140, height: 100, terminals: [{id: 'in_pos', label: 'IN+', x: 20, color: COLORS.POS}, {id: 'in_neg', label: 'IN-', x: 40, color: COLORS.NEG}, {id: 'out_pos', label: 'OUT+', x: 80, color: COLORS.POS}, {id: 'out_neg', label: 'OUT-', x: 100, color: COLORS.NEG}] },
@@ -230,6 +242,63 @@
                 editFields: [ { field: 'watts', label: 'กำลังไฟ', unit: 'W', min: 10, max: 2000, step: 50 } ]
             },
         };
+
+        const EXAMPLE_COMPONENTS = [
+            { id: 'p1', type: 'panel', x: 280, y: 100, watts: 550, maxVoltage: 40, isOn: true },
+            { id: 'p2', type: 'panel', x: 420, y: 100, watts: 550, maxVoltage: 40, isOn: true },
+            { id: 'cb', type: 'combiner_box', x: 300, y: 350, isOn: true },
+            { id: 'brk_dc', type: 'breaker_dc', x: 310, y: 550, isOn: true },
+            { id: 'surge_dc', type: 'dc_surge', x: 150, y: 555, isOn: true },
+            { id: 'chg', type: 'charger', x: 500, y: 540, isOn: true },
+            { id: 'bat', type: 'battery', x: 540, y: 750, capacity: 200, soc: 80, isOn: true },
+            { id: 'brk_bat', type: 'breaker_dc', x: 700, y: 765, isOn: true },
+            { id: 'inv', type: 'inv_hyb_5kw_1p', x: 880, y: 750, capacityKW: 5, isOn: true },
+            { id: 'brk_ac', type: 'ac_breaker', x: 900, y: 950, isOn: true },
+            { id: 'surge_ac', type: 'ac_surge', x: 740, y: 955, isOn: true },
+            { id: 'meter', type: 'energy_meter', x: 1080, y: 950, isOn: true },
+            { id: 'main', type: 'consumer_main', x: 1090, y: 1150, isOn: true },
+            { id: 'sub1', type: 'consumer_sub', x: 1250, y: 1155, isOn: true },
+            { id: 'term_n', type: 'terminal_block_ac_n', x: 950, y: 1180, isOn: true },
+            { id: 'bulb', type: 'bulb_ac', x: 1090, y: 1350, watts: 60, isOn: true },
+            { id: 'socket', type: 'socket_ac', x: 1250, y: 1380, watts: 500, isOn: true },
+            { id: 'gb', type: 'ground_bar', x: 400, y: 1150, isOn: true }
+        ];
+
+        const EXAMPLE_WIRES = [
+            { id: 'w1', from: 'p1', fromTerm: 'pos', to: 'cb', toTerm: 'in1_pos', waypoints: [{id: 1, x: 320, y: 300}], color: COLORS.POS },
+            { id: 'w2', from: 'p1', fromTerm: 'neg', to: 'cb', toTerm: 'in1_neg', waypoints: [{id: 2, x: 360, y: 310}, {id: 3, x: 340, y: 310}], color: COLORS.NEG },
+            { id: 'w3', from: 'p2', fromTerm: 'pos', to: 'cb', toTerm: 'in2_pos', waypoints: [{id: 4, x: 460, y: 320}, {id: 5, x: 360, y: 320}], color: COLORS.POS },
+            { id: 'w4', from: 'p2', fromTerm: 'neg', to: 'cb', toTerm: 'in2_neg', waypoints: [{id: 6, x: 500, y: 330}, {id: 7, x: 380, y: 330}], color: COLORS.NEG },
+            { id: 'w5', from: 'cb', fromTerm: 'out_pos', to: 'brk_dc', toTerm: 'in_1', waypoints: [], color: COLORS.POS },
+            { id: 'w6', from: 'cb', fromTerm: 'out_neg', to: 'brk_dc', toTerm: 'in_2', waypoints: [], color: COLORS.NEG },
+            { id: 'w7', from: 'brk_dc', fromTerm: 'out_1', to: 'chg', toTerm: 'pv_pos', waypoints: [{id: 8, x: 390, y: 690}, {id: 9, x: 520, y: 690}], color: COLORS.POS },
+            { id: 'w8', from: 'brk_dc', fromTerm: 'out_2', to: 'chg', toTerm: 'pv_neg', waypoints: [{id: 10, x: 410, y: 710}, {id: 11, x: 540, y: 710}], color: COLORS.NEG },
+            { id: 'ws1', from: 'brk_dc', fromTerm: 'out_1', to: 'surge_dc', toTerm: 'pos', waypoints: [{id: 12, x: 390, y: 690}, {id: 13, x: 170, y: 690}], color: COLORS.POS },
+            { id: 'ws2', from: 'brk_dc', fromTerm: 'out_2', to: 'surge_dc', toTerm: 'neg', waypoints: [{id: 14, x: 410, y: 710}, {id: 15, x: 190, y: 710}], color: COLORS.NEG },
+            { id: 'wsg1', from: 'surge_dc', fromTerm: 'g', to: 'gb', toTerm: 'g1', waypoints: [{id: 16, x: 230, y: 730}, {id: 17, x: 420, y: 730}], color: COLORS.G },
+            { id: 'w9', from: 'chg', fromTerm: 'bat_pos', to: 'bat', toTerm: 'pos', waypoints: [], color: COLORS.POS },
+            { id: 'w10', from: 'chg', fromTerm: 'bat_neg', to: 'bat', toTerm: 'neg', waypoints: [], color: COLORS.NEG },
+            { id: 'w11', from: 'bat', fromTerm: 'pos', to: 'brk_bat', toTerm: 'in_1', waypoints: [{id: 18, x: 580, y: 920}, {id: 19, x: 740, y: 920}], color: COLORS.POS },
+            { id: 'w12', from: 'bat', fromTerm: 'neg', to: 'brk_bat', toTerm: 'in_2', waypoints: [{id: 20, x: 620, y: 940}, {id: 21, x: 760, y: 940}], color: COLORS.NEG },
+            { id: 'w13', from: 'brk_bat', fromTerm: 'out_1', to: 'inv', toTerm: 'bat_pos', waypoints: [{id: 22, x: 780, y: 920}, {id: 23, x: 950, y: 920}], color: COLORS.POS },
+            { id: 'w14', from: 'brk_bat', fromTerm: 'out_2', to: 'inv', toTerm: 'bat_neg', waypoints: [{id: 24, x: 800, y: 940}, {id: 25, x: 970, y: 940}], color: COLORS.NEG },
+            { id: 'w15', from: 'inv', fromTerm: 'ac_l', to: 'brk_ac', toTerm: 'in_l', waypoints: [{id: 26, x: 1000, y: 910}, {id: 27, x: 940, y: 910}], color: COLORS.AC_L },
+            { id: 'w16', from: 'inv', fromTerm: 'ac_n', to: 'brk_ac', toTerm: 'in_n', waypoints: [{id: 28, x: 1020, y: 930}, {id: 29, x: 960, y: 930}], color: COLORS.AC_N },
+            { id: 'w17', from: 'brk_ac', fromTerm: 'out_l', to: 'meter', toTerm: 'in_l', waypoints: [{id: 30, x: 980, y: 1080}, {id: 31, x: 1100, y: 1080}], color: COLORS.AC_L },
+            { id: 'w18', from: 'brk_ac', fromTerm: 'out_n', to: 'meter', toTerm: 'in_n', waypoints: [{id: 32, x: 1000, y: 1100}, {id: 33, x: 1120, y: 1100}], color: COLORS.AC_N },
+            { id: 'ws3', from: 'brk_ac', fromTerm: 'out_l', to: 'surge_ac', toTerm: 'l', waypoints: [{id: 34, x: 980, y: 1080}, {id: 35, x: 760, y: 1080}], color: COLORS.AC_L },
+            { id: 'ws4', from: 'brk_ac', fromTerm: 'out_n', to: 'surge_ac', toTerm: 'n', waypoints: [{id: 36, x: 1000, y: 1100}, {id: 37, x: 780, y: 1100}], color: COLORS.AC_N },
+            { id: 'wsg2', from: 'surge_ac', fromTerm: 'g', to: 'gb', toTerm: 'g5', waypoints: [{id: 38, x: 820, y: 1120}, {id: 39, x: 540, y: 1120}], color: COLORS.G },
+            { id: 'w19', from: 'meter', fromTerm: 'out_l', to: 'main', toTerm: 'in_l', waypoints: [], color: COLORS.AC_L },
+            { id: 'w20', from: 'meter', fromTerm: 'out_n', to: 'main', toTerm: 'in_n', waypoints: [], color: COLORS.AC_N },
+            { id: 'w21', from: 'main', fromTerm: 'out_l', to: 'sub1', toTerm: 'in', waypoints: [{id: 40, x: 1170, y: 1290}, {id: 41, x: 1270, y: 1290}], color: COLORS.AC_L },
+            { id: 'w22', from: 'main', fromTerm: 'out_n', to: 'term_n', toTerm: 't1', waypoints: [{id: 42, x: 1190, y: 1310}, {id: 43, x: 970, y: 1310}], color: COLORS.AC_N },
+            { id: 'w23', from: 'sub1', fromTerm: 'out', to: 'bulb', toTerm: 'l', waypoints: [{id: 44, x: 1310, y: 1290}, {id: 45, x: 1130, y: 1290}], color: COLORS.AC_L },
+            { id: 'w24', from: 'sub1', fromTerm: 'out', to: 'socket', toTerm: 'l', waypoints: [], color: COLORS.AC_L },
+            { id: 'w25', from: 'term_n', fromTerm: 't3', to: 'bulb', toTerm: 'n', waypoints: [{id: 46, x: 1010, y: 1310}, {id: 47, x: 1150, y: 1310}], color: COLORS.AC_N },
+            { id: 'w26', from: 'term_n', fromTerm: 't4', to: 'socket', toTerm: 'n', waypoints: [{id: 48, x: 1030, y: 1330}, {id: 49, x: 1310, y: 1330}], color: COLORS.AC_N },
+        ];
+
 
         const getPolylinePath = (p1, waypoints, p2) => {
             let path = `M ${p1.x} ${p1.y} `;
@@ -301,37 +370,51 @@
             </g>
         );
 
-        const AdvancedInverterVisual = ({ width, height, label, capacityKW, isPowered, isCharging, isOverloaded, is3Phase }) => (
-            <g>
-                <rect x="0" y="0" width={width} height={height} rx="8" fill={isOverloaded ? "#fef2f2" : "#f8fafc"} stroke={isOverloaded ? "#ef4444" : "#3b82f6"} strokeWidth="2" />
-                <rect x="15" y="20" width={width-30} height="50" rx="4" fill="#0f172a" />
-                
-                {isOverloaded ? (
-                     <text x={width/2} y="50" textAnchor="middle" fontSize="16" fontWeight="bold" fontFamily="monospace" className="overload-alert">OVERLOAD!</text>
-                ) : (
-                    <g>
-                        <text x={width/2} y="45" textAnchor="middle" fill={isPowered ? "#4ade80" : "#475569"} fontSize="12" fontWeight="bold" fontFamily="monospace">
-                            {isPowered ? "RUNNING" : "STANDBY"}
-                        </text>
-                        {isCharging && <text x={width/2} y="60" textAnchor="middle" fill="#facc15" fontSize="10" fontFamily="monospace">BAT CHARGING</text>}
-                    </g>
-                )}
+        const AdvancedInverterVisual = ({ width, height, label, capacityKW, isPowered, isCharging, isOverloaded, is3Phase, invClass }) => {
+            let baseColor, strokeColor, labelColor, titleTag;
+            
+            if (isOverloaded) { baseColor = "#fef2f2"; strokeColor = "#ef4444"; labelColor = "#ef4444"; titleTag = "OVERLOAD"; }
+            else if (invClass === 'on') { baseColor = "#ecfdf5"; strokeColor = "#10b981"; labelColor = "#047857"; titleTag = "ON-GRID"; }
+            else if (invClass === 'off') { baseColor = "#fffbeb"; strokeColor = "#f59e0b"; labelColor = "#b45309"; titleTag = "OFF-GRID"; }
+            else if (invClass === 'hyb') { baseColor = "#f5f3ff"; strokeColor = "#8b5cf6"; labelColor = "#6d28d9"; titleTag = "HYBRID"; }
+            else { baseColor = "#f8fafc"; strokeColor = "#3b82f6"; labelColor = "#1d4ed8"; titleTag = "INVERTER"; }
 
-                <text x={width/2} y="95" textAnchor="middle" fill={isOverloaded ? "#ef4444" : "#1d4ed8"} fontSize="11" fontWeight="bold">{label}</text>
-                
-                <circle cx={25} cy={105} r="3" fill={isPowered ? "#22c55e" : "#cbd5e1"} />
-                <text x={25} y={115} textAnchor="middle" fill="#475569" fontSize="6" fontWeight="bold">PWR</text>
-                
-                <circle cx={45} cy={105} r="3" fill={isCharging ? "#eab308" : "#cbd5e1"} />
-                <text x={45} y={115} textAnchor="middle" fill="#475569" fontSize="6" fontWeight="bold">CHG</text>
+            return (
+                <g>
+                    <rect x="0" y="0" width={width} height={height} rx="8" fill={baseColor} stroke={strokeColor} strokeWidth="2" />
+                    <rect x="15" y="20" width={width-30} height="50" rx="4" fill="#0f172a" />
+                    
+                    {isOverloaded ? (
+                         <text x={width/2} y="50" textAnchor="middle" fontSize="16" fontWeight="bold" fontFamily="monospace" className="overload-alert">OVERLOAD!</text>
+                    ) : (
+                        <g>
+                            <text x={width/2} y="45" textAnchor="middle" fill={isPowered ? "#4ade80" : "#475569"} fontSize="12" fontWeight="bold" fontFamily="monospace">
+                                {isPowered ? "RUNNING" : "STANDBY"}
+                            </text>
+                            {isCharging && <text x={width/2} y="60" textAnchor="middle" fill="#facc15" fontSize="10" fontFamily="monospace">BAT CHARGING</text>}
+                        </g>
+                    )}
 
-                {is3Phase && (
-                     <text x={width - 25} y={115} textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold">3-PHASE</text>
-                )}
-            </g>
-        );
+                    <text x={width/2} y="95" textAnchor="middle" fill={labelColor} fontSize="11" fontWeight="bold">{label}</text>
+                    <text x={width/2} y="15" textAnchor="middle" fill={strokeColor} fontSize="9" fontWeight="bold" opacity="0.8">{titleTag}</text>
+                    
+                    <circle cx={25} cy={105} r="3" fill={isPowered ? "#22c55e" : "#cbd5e1"} />
+                    <text x={25} y={115} textAnchor="middle" fill="#475569" fontSize="6" fontWeight="bold">PWR</text>
+                    
+                    {invClass !== 'on' && (
+                        <g>
+                            <circle cx={45} cy={105} r="3" fill={isCharging ? "#eab308" : "#cbd5e1"} />
+                            <text x={45} y={115} textAnchor="middle" fill="#475569" fontSize="6" fontWeight="bold">CHG</text>
+                        </g>
+                    )}
 
-        // ... (Keep other Visuals like BoxVisual for AC_Source, Fuse, Motor, Bulb, Socket, Surge, CombinerBox, AcMeter, DcWattMeter, ConsumerMain, ConsumerSub, GroundBar, TerminalBlock)
+                    {is3Phase && (
+                         <text x={width - 25} y={115} textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="bold">3-PHASE</text>
+                    )}
+                </g>
+            );
+        };
+
         const BoxVisual = ({ width, height, label, isPowered }) => (
             <g>
                 <rect x="0" y="0" width={width} height={height} rx="6" fill="white" stroke="#374151" strokeWidth="2" />
@@ -391,13 +474,10 @@
             const [searchQuery, setSearchQuery] = useState('');
 
             const simResultsRef = useRef(simResults);
-            const sunIntensityRef = useRef(sunIntensity);
-            const lastTapRef = useRef({ time: 0, id: null });
-            const lastTouchRef = useRef(null);
             const canvasRef = useRef(null);
-
+            const lastTouchRef = useRef(null);
+            
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
-            useEffect(() => { sunIntensityRef.current = sunIntensity; }, [sunIntensity]);
 
             const getLocalPos = (e) => {
                 if (!canvasRef.current) return { x: 0, y: 0 };
@@ -453,24 +533,26 @@
                 return () => clearInterval(i);
             }, []);
 
+            // --- Logic Engine (คำนวณวงจร) ---
             useEffect(() => {
                 const nets = [];
                 const getNet = (id) => nets.find(s => s.has(id));
                 
                 components.forEach(c => {
                     const spec = SPECS[c.type];
-                    if(spec?.terminals) spec.terminals.forEach(t => { nets.push(new Set([`${c.id}_${t.id}`])); });
+                    if(spec?.terminals) spec.terminals.forEach(t => { nets.push(new Set([`${c.id}::${t.id}`])); });
                 });
                 
                 wires.forEach(w => {
-                    const n1 = getNet(`${w.from}_${w.fromTerm}`);
-                    const n2 = getNet(`${w.to}_${w.toTerm}`);
+                    const n1 = getNet(`${w.from}::${w.fromTerm}`);
+                    const n2 = getNet(`${w.to}::${w.toTerm}`);
                     if(n1 && n2 && n1 !== n2) { n2.forEach(i => n1.add(i)); nets.splice(nets.indexOf(n2), 1); }
                 });
 
+                // ยุบรวมวงจรของ Combiner Box ทันที เพื่อป้องกันกระแสโดนตัดเมื่อผ่านกล่อง
                 components.forEach(c => {
                     if ([COMPONENT_TYPES.GROUND_BAR, COMPONENT_TYPES.TERMINAL_BLOCK_POS, COMPONENT_TYPES.TERMINAL_BLOCK_NEG, COMPONENT_TYPES.TERMINAL_BLOCK_AC_L, COMPONENT_TYPES.TERMINAL_BLOCK_AC_N].includes(c.type)) {
-                        const termIds = SPECS[c.type].terminals.map(t => `${c.id}_${t.id}`);
+                        const termIds = SPECS[c.type].terminals.map(t => `${c.id}::${t.id}`);
                         if (termIds.length > 1) {
                             let commonNet = getNet(termIds[0]);
                             for (let i = 1; i < termIds.length; i++) {
@@ -482,29 +564,57 @@
                             }
                         }
                     }
+                    if (c.type === COMPONENT_TYPES.COMBINER_BOX) {
+                        [['in1_pos', 'in2_pos', 'out_pos'], ['in1_neg', 'in2_neg', 'out_neg']].forEach(group => {
+                            const termIds = group.map(t => `${c.id}::${t}`);
+                            let commonNet = getNet(termIds[0]);
+                            for (let i = 1; i < termIds.length; i++) {
+                                const targetNet = getNet(termIds[i]);
+                                if (commonNet && targetNet && commonNet !== targetNet) {
+                                    targetNet.forEach(item => commonNet.add(item));
+                                    nets.splice(nets.indexOf(targetNet), 1);
+                                }
+                            }
+                        });
+                    }
                 });
 
                 const netVoltages = new Map();
                 const compStates = {};
                 
-                // Detection Short Circuits
-                let isShort = false;
+                const getVDiff = (netP, netN) => {
+                    if (!netP || !netN || !netVoltages.has(netP) || !netVoltages.has(netN)) return 0;
+                    return netVoltages.get(netP) - netVoltages.get(netN);
+                };
+
+                // เพิ่ม Meter ให้อยู่ในกลุ่มที่กระแสชาร์จสามารถวิ่งทะลุผ่านไปได้
                 const areNetsConnected = (net1, net2) => {
                     if (net1 === net2) return true;
+                    if (!net1 || !net2) return false;
                     const visited = new Set([net1]);
                     const queue = [net1];
                     while (queue.length > 0) {
                         const currentNet = queue.pop();
                         if (currentNet === net2) return true;
                         currentNet.forEach(termId => {
-                            const [cId, tName] = termId.split('_');
+                            const splitIdx = termId.indexOf('::');
+                            if (splitIdx === -1) return;
+                            const cId = termId.substring(0, splitIdx);
+                            const tName = termId.substring(splitIdx + 2);
+                            
                             const comp = components.find(c => c.id === cId);
                             if (!comp) return;
-                            if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.AC_FUSE].includes(comp.type)) {
+                            
+                            if ([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.AC_FUSE, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.DC_WATT_METER].includes(comp.type)) {
                                 if (comp.isOn !== false) {
-                                    let otherTerm = tName.startsWith('in') ? tName.replace('in', 'out') : tName.startsWith('out') ? tName.replace('out', 'in') : null;
+                                    let otherTerm = null;
+                                    if (tName.startsWith('in_')) otherTerm = tName.replace('in_', 'out_');
+                                    else if (tName.startsWith('out_')) otherTerm = tName.replace('out_', 'in_');
+                                    else if (tName === 'in') otherTerm = 'out';
+                                    else if (tName === 'out') otherTerm = 'in';
+
                                     if (otherTerm) {
-                                        const otherNet = getNet(`${cId}_${otherTerm}`);
+                                        const otherNet = getNet(`${cId}::${otherTerm}`);
                                         if (otherNet && !visited.has(otherNet)) { visited.add(otherNet); queue.push(otherNet); }
                                     }
                                 }
@@ -514,13 +624,14 @@
                     return false;
                 };
 
+                let isShort = false;
                 const sources = [
-                    ...components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).map(c => ({ l: `${c.id}_l`, n: `${c.id}_n` })),
-                    ...components.filter(c => c.type === COMPONENT_TYPES.BATTERY && c.soc > 0).map(c => ({ l: `${c.id}_pos`, n: `${c.id}_neg` })),
-                    ...components.filter(c => c.type === COMPONENT_TYPES.PANEL).map(c => ({ l: `${c.id}_pos`, n: `${c.id}_neg` })),
+                    ...components.filter(c => c.type === COMPONENT_TYPES.AC_SOURCE).map(c => ({ l: `${c.id}::l`, n: `${c.id}::n` })),
+                    ...components.filter(c => c.type === COMPONENT_TYPES.BATTERY && c.soc > 0).map(c => ({ l: `${c.id}::pos`, n: `${c.id}::neg` })),
+                    ...components.filter(c => c.type === COMPONENT_TYPES.PANEL).map(c => ({ l: `${c.id}::pos`, n: `${c.id}::neg` })),
                     ...components.filter(c => c.type.startsWith('inv_') && compStates[c.id]?.isPowered).flatMap(c => {
-                        if (c.type.includes('_3p')) return [{ l: `${c.id}_ac_l1`, n: `${c.id}_ac_n` }, { l: `${c.id}_ac_l2`, n: `${c.id}_ac_n` }, { l: `${c.id}_ac_l3`, n: `${c.id}_ac_n` }];
-                        return [{ l: `${c.id}_ac_l`, n: `${c.id}_ac_n` }];
+                        if (c.type.includes('_3p')) return [{ l: `${c.id}::ac_l1`, n: `${c.id}::ac_n` }, { l: `${c.id}::ac_l2`, n: `${c.id}::ac_n` }, { l: `${c.id}::ac_l3`, n: `${c.id}::ac_n` }];
+                        return [{ l: `${c.id}::ac_l`, n: `${c.id}::ac_n` }];
                     })
                 ];
 
@@ -539,42 +650,31 @@
                 let systemBatVoltage = 0;
                 let isSystemCharging = false;
                 
-                // --- คำนวณพลังงานรวมของแผงล่วงหน้าเพื่อใช้ในการจำลองแรงดัน ---
-                const totalPVWattsCapacity = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (p.watts || 550), 0);
+                const totalPVWattsCapacity = components.filter(p => p.type === COMPONENT_TYPES.PANEL).reduce((sum, p) => sum + (Number(p.watts) || 550), 0);
                 const estPvAvailableWatts = totalPVWattsCapacity * (sunIntensity/100);
                 const prevBatteryDrain = simResultsRef.current.batteryDrainWatts || 0;
 
-                // Set initial Voltages
                 components.forEach(c => {
                     if (c.type === COMPONENT_TYPES.PANEL) {
-                        const v = ((c.maxVoltage || 40) * (sunIntensity/100)) + noiseV; 
-                        const pos = getNet(`${c.id}_pos`); const neg = getNet(`${c.id}_neg`);
+                        const v = ((Number(c.maxVoltage) || 40) * (sunIntensity/100)) + noiseV; 
+                        const pos = getNet(`${c.id}::pos`); const neg = getNet(`${c.id}::neg`);
                         if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
                         netVoltages.set(pos, (netVoltages.get(neg)||0) + v);
                     } else if (c.type === COMPONENT_TYPES.BATTERY && (c.soc || 50) > 0) {
-                        const pos = getNet(`${c.id}_pos`); const neg = getNet(`${c.id}_neg`);
+                        const pos = getNet(`${c.id}::pos`); const neg = getNet(`${c.id}::neg`);
                         if(!netVoltages.has(neg)) netVoltages.set(neg, 0);
                         
-                        // 1. แรงดันพื้นฐานตาม SOC (มาตรฐานแบตเตอรี่ Lead-Acid 11.5V - 12.8V)
-                        let vBat = 11.5 + ((c.soc||50) / 100) * 1.3; 
-                        
-                        // 2. จำลองแรงดันตกคร่อม (Voltage Sag) ตามโหลดดึงกระแส (Internal Resistance)
-                        if (prevBatteryDrain > 0) {
-                            vBat -= (prevBatteryDrain / 1000) * 0.25; // โวลต์ตก 0.25V ทุกๆ โหลด 1000W
-                        }
-
-                        // 3. จำลองแรงดันชาร์จ (Charging Voltage)
+                        let vBat = 11.5 + ((Number(c.soc)||50) / 100) * 1.3; 
+                        if (prevBatteryDrain > 0) vBat -= (prevBatteryDrain / 1000) * 0.25;
                         if (estPvAvailableWatts > prevBatteryDrain + 50) {
                             vBat += 0.5 + Math.min(1.0, (estPvAvailableWatts - prevBatteryDrain) / 2000); 
-                            vBat = Math.min(vBat, 14.4); // ล็อกแรงดันชาร์จสูงสุดที่ 14.4V ตามมาตรฐาน
+                            vBat = Math.min(vBat, 14.4);
                         }
-                        
-                        vBat = Math.max(10.5, vBat); // ตัดการทำงานที่ 10.5V (Low Voltage Disconnect)
-
-                        netVoltages.set(pos, vBat); 
+                        vBat = Math.max(10.5, vBat); 
+                        netVoltages.set(pos, (netVoltages.get(neg)||0) + vBat); 
                         systemBatVoltage = vBat;
                     } else if (c.type === COMPONENT_TYPES.AC_SOURCE) {
-                        const l = getNet(`${c.id}_l`); const n = getNet(`${c.id}_n`);
+                        const l = getNet(`${c.id}::l`); const n = getNet(`${c.id}::n`);
                         if(n) netVoltages.set(n, 0); 
                         if(l) netVoltages.set(l, 220 + noiseV*5); 
                         compStates[c.id] = { isPowered: true };
@@ -584,83 +684,82 @@
                 // Propagate 
                 for(let pass=0; pass<3; pass++) {
                     components.forEach(c => {
-                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.AC_FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB, COMPONENT_TYPES.COMBINER_BOX].includes(c.type)) {
-                            if(c.type === COMPONENT_TYPES.COMBINER_BOX) {
-                                [['in1_pos', 'in2_pos', 'out_pos'], ['in1_neg', 'in2_neg', 'out_neg']].forEach(group => {
-                                    const nets = group.map(id => getNet(`${c.id}_${id}`)).filter(n => n);
-                                    const voltages = nets.map(n => netVoltages.get(n)).filter(v => v !== undefined);
-                                    if(voltages.length > 0) {
-                                        const v = Math.max(...voltages);
-                                        nets.forEach(n => { if(netVoltages.get(n) !== v) netVoltages.set(n, v); });
-                                    }
-                                });
-                            } else {
-                                let pairs = [];
-                                if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
-                                else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.AC_FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
-                                else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
-                                else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
+                        if([COMPONENT_TYPES.AC_BREAKER, COMPONENT_TYPES.BREAKER_DC, COMPONENT_TYPES.FUSE, COMPONENT_TYPES.AC_FUSE, COMPONENT_TYPES.DC_WATT_METER, COMPONENT_TYPES.ENERGY_METER, COMPONENT_TYPES.CONSUMER_MAIN, COMPONENT_TYPES.CONSUMER_SUB].includes(c.type)) {
+                            let pairs = [];
+                            if (c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.ENERGY_METER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) pairs = [['in_l', 'out_l'], ['in_n', 'out_n']];
+                            else if (c.type === COMPONENT_TYPES.FUSE || c.type === COMPONENT_TYPES.AC_FUSE || c.type === COMPONENT_TYPES.CONSUMER_SUB) pairs = [['in', 'out']];
+                            else if (c.type === COMPONENT_TYPES.DC_WATT_METER) pairs = [['in_pos', 'out_pos'], ['in_neg', 'out_neg']];
+                            else pairs = [['in_1', 'out_1'], ['in_2', 'out_2']]; 
 
-                                if (c.isOn !== false || ['dc_watt_meter','energy_meter'].includes(c.type)) {
-                                    pairs.forEach(([iId, oId]) => {
-                                        const nI = getNet(`${c.id}_${iId}`); const nO = getNet(`${c.id}_${oId}`);
-                                        if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
-                                        else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
-                                    });
-                                }
+                            if (c.isOn !== false || ['dc_watt_meter','energy_meter'].includes(c.type)) {
+                                pairs.forEach(([iId, oId]) => {
+                                    const nI = getNet(`${c.id}::${iId}`); const nO = getNet(`${c.id}::${oId}`);
+                                    if(netVoltages.has(nI)) netVoltages.set(nO, netVoltages.get(nI));
+                                    else if(netVoltages.has(nO)) netVoltages.set(nI, netVoltages.get(nO));
+                                });
                             }
                             
-                            // LED Indicator Logic
                             let inputPowered = false;
                             if(c.type === COMPONENT_TYPES.AC_BREAKER || c.type === COMPONENT_TYPES.CONSUMER_MAIN) {
-                                if(Math.abs((netVoltages.get(getNet(`${c.id}_in_l`))||0) - (netVoltages.get(getNet(`${c.id}_in_n`))||0)) > 50) inputPowered = true;
+                                if(Math.abs(getVDiff(getNet(`${c.id}::in_l`), getNet(`${c.id}::in_n`))) > 50) inputPowered = true;
                             } else if (c.type === COMPONENT_TYPES.CONSUMER_SUB) {
-                                if ((netVoltages.get(getNet(`${c.id}_in`))||0) > 50) inputPowered = true;
+                                if ((netVoltages.get(getNet(`${c.id}::in`))||0) > 50) inputPowered = true;
                             } else if (c.type === COMPONENT_TYPES.BREAKER_DC) {
-                                if(Math.abs((netVoltages.get(getNet(`${c.id}_in_1`))||0) - (netVoltages.get(getNet(`${c.id}_in_2`))||0)) > 10) inputPowered = true;
+                                if(Math.abs(getVDiff(getNet(`${c.id}::in_1`), getNet(`${c.id}::in_2`))) > 10) inputPowered = true;
                             }
                             compStates[c.id] = { ...compStates[c.id], isInputPowered: inputPowered };
                         }
 
                         if (c.type === COMPONENT_TYPES.CHARGER) {
-                            const pvp = getNet(`${c.id}_pv_pos`); const batp = getNet(`${c.id}_bat_pos`); const loadp = getNet(`${c.id}_load_pos`);
-                            const vpv = netVoltages.get(pvp) || 0; const vbat = netVoltages.get(batp) || 0;
+                            const pvp = getNet(`${c.id}::pv_pos`); const pvn = getNet(`${c.id}::pv_neg`);
+                            const batp = getNet(`${c.id}::bat_pos`); const batn = getNet(`${c.id}::bat_neg`);
+                            const loadp = getNet(`${c.id}::load_pos`); const loadn = getNet(`${c.id}::load_neg`);
+                            
+                            const vpv = getVDiff(pvp, pvn); 
+                            const vbat = getVDiff(batp, batn);
                             const isCharging = vpv > (vbat + 1.0) && vpv > 13;
                             if(isCharging) isSystemCharging = true;
                             
                             if(isCharging) {
                                 if(batp) netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100)*1.0 + noiseV));
+                                if(batn && !netVoltages.has(batn)) netVoltages.set(batn, 0);
                                 if(loadp) netVoltages.set(loadp, 12.0 + noiseV); 
-                            } else if(loadp && vbat > 10.5) netVoltages.set(loadp, vbat);
+                                if(loadn && !netVoltages.has(loadn)) netVoltages.set(loadn, 0);
+                            } else if(vbat > 10.5) {
+                                if(loadp) netVoltages.set(loadp, vbat);
+                                if(loadn && !netVoltages.has(loadn)) netVoltages.set(loadn, 0);
+                            }
                             
                             compStates[c.id] = { ...compStates[c.id], isCharging, hasLoad: wires.some(w => w.from === c.id && w.fromTerm === 'load_pos' || w.to === c.id && w.toTerm === 'load_pos') && (vbat > 10 || isCharging), pvInputWatts: isCharging ? estPvAvailableWatts : 0 };
                         }
 
                         if (c.type.startsWith('inv_')) {
-                            const pv1p = getNet(`${c.id}_pv1_pos`); const pv1n = getNet(`${c.id}_pv1_neg`);
-                            const pv2p = getNet(`${c.id}_pv2_pos`); const pv2n = getNet(`${c.id}_pv2_neg`);
-                            const batp = getNet(`${c.id}_bat_pos`); const batn = getNet(`${c.id}_bat_neg`);
+                            const pv1p = getNet(`${c.id}::pv1_pos`); const pv1n = getNet(`${c.id}::pv1_neg`);
+                            const pv2p = getNet(`${c.id}::pv2_pos`); const pv2n = getNet(`${c.id}::pv2_neg`);
+                            const batp = getNet(`${c.id}::bat_pos`); const batn = getNet(`${c.id}::bat_neg`);
 
-                            const vPv1 = (netVoltages.get(pv1p) || 0) - (netVoltages.get(pv1n) || 0);
-                            const vPv2 = pv2p ? ((netVoltages.get(pv2p) || 0) - (netVoltages.get(pv2n) || 0)) : 0;
-                            const vBat = batp ? ((netVoltages.get(batp) || 0) - (netVoltages.get(batn) || 0)) : 0;
+                            const vPv1 = getVDiff(pv1p, pv1n);
+                            const vPv2 = pv2p ? getVDiff(pv2p, pv2n) : 0;
+                            const vBat = batp ? getVDiff(batp, batn) : 0;
 
                             let isPowered = false;
                             let isCharging = false;
 
                             if (vPv1 > 15 || vPv2 > 15 || vBat > 11) isPowered = true;
 
-                            if ((vPv1 > 15 || vPv2 > 15) && vBat > 0 && vBat < 14.4) {
+                            // เลื่อนเช็ค < 14.5 เพื่อหลีกเลี่ยงบั๊กกระพริบเมื่อแบตชาร์จเต็มเป๊ะ
+                            // เฉพาะ Off-grid และ Hybrid ที่มีช่องต่อแบต ถึงจะชาร์จได้
+                            if (batp && (vPv1 > 15 || vPv2 > 15) && vBat > 0 && vBat <= 14.5) {
                                 isCharging = true; isSystemCharging = true;
-                                if (batp) netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100) * 1.0 + noiseV));
+                                netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100) * 1.0 + noiseV));
                             }
 
                             if (isPowered) {
                                 if (c.type.includes('_1p')) {
-                                    const acl = getNet(`${c.id}_ac_l`); const acn = getNet(`${c.id}_ac_n`);
+                                    const acl = getNet(`${c.id}::ac_l`); const acn = getNet(`${c.id}::ac_n`);
                                     if (acl) netVoltages.set(acl, 220 + noiseV*5); if (acn) netVoltages.set(acn, 0);
                                 } else if (c.type.includes('_3p')) {
-                                    const l1 = getNet(`${c.id}_ac_l1`); const l2 = getNet(`${c.id}_ac_l2`); const l3 = getNet(`${c.id}_ac_l3`); const n = getNet(`${c.id}_ac_n`);
+                                    const l1 = getNet(`${c.id}::ac_l1`); const l2 = getNet(`${c.id}::ac_l2`); const l3 = getNet(`${c.id}::ac_l3`); const n = getNet(`${c.id}::ac_n`);
                                     if (l1) netVoltages.set(l1, 220 + noiseV*5); if (l2) netVoltages.set(l2, 220 + noiseV*5); if (l3) netVoltages.set(l3, 220 + noiseV*5); if (n) netVoltages.set(n, 0);
                                 }
                             }
@@ -669,17 +768,15 @@
                     });
                 }
                 
-                // Loads Tracing
                 let globalBatteryDrain = 0;
                 components.forEach(c => {
                      if(['bulb_ac', 'bulb_dc', 'socket_ac', 'motor_ac', 'motor_dc'].includes(c.type)) {
                         const isDC = c.type.endsWith('_dc');
-                        const l = getNet(isDC ? `${c.id}_pos` : `${c.id}_l`);
-                        const n = getNet(isDC ? `${c.id}_neg` : `${c.id}_n`);
-                        const vL = netVoltages.get(l); const vN = netVoltages.get(n);
+                        const l = getNet(isDC ? `${c.id}::pos` : `${c.id}::l`);
+                        const n = getNet(isDC ? `${c.id}::neg` : `${c.id}::n`);
                         
-                        if (vL !== undefined && vN !== undefined && masterLoadOn && Math.abs(vL - vN) > (isDC ? 10 : 150)) { 
-                            const actualWatts = (c.watts || 100) + noiseW;
+                        if (masterLoadOn && Math.abs(getVDiff(l, n)) > (isDC ? 10 : 150)) { 
+                            const actualWatts = (Number(c.watts) || 100) + noiseW;
                             compStates[c.id] = { ...compStates[c.id], isPowered: true, activeWatts: actualWatts };
                             if (isDC) globalBatteryDrain += actualWatts;
                         } else {
@@ -688,15 +785,31 @@
                     }
                 });
 
+                components.filter(c => c.type === COMPONENT_TYPES.CHARGER).forEach(chg => {
+                    let loadW = 0;
+                    const loadp = getNet(`${chg.id}::load_pos`);
+                    const loadn = getNet(`${chg.id}::load_neg`);
+                    components.forEach(load => {
+                        if (['bulb_dc', 'motor_dc'].includes(load.type) && compStates[load.id]?.isPowered) {
+                            const lp = getNet(`${load.id}::pos`);
+                            const ln = getNet(`${load.id}::neg`);
+                            if (lp && ln && areNetsConnected(loadp, lp) && areNetsConnected(loadn, ln)) {
+                                loadW += compStates[load.id].activeWatts;
+                            }
+                        }
+                    });
+                    compStates[chg.id] = { ...compStates[chg.id], loadWatts: loadW };
+                });
+
                 components.filter(c => c.type.startsWith('inv_')).forEach(inv => {
                     let totalAcLoad = 0;
                     if(compStates[inv.id]?.isPowered) {
                         const startNets = [];
                         if (inv.type.includes('_1p')) {
-                            const n = getNet(`${inv.id}_ac_l`); if (n) startNets.push(n);
+                            const n = getNet(`${inv.id}::ac_l`); if (n) startNets.push(n);
                         } else {
                             ['ac_l1', 'ac_l2', 'ac_l3'].forEach(term => {
-                                const n = getNet(`${inv.id}_${term}`); if (n) startNets.push(n);
+                                const n = getNet(`${inv.id}::${term}`); if (n) startNets.push(n);
                             });
                         }
 
@@ -705,21 +818,28 @@
                             while(queue.length > 0) {
                                 const net = queue.pop();
                                 net.forEach(termId => {
-                                    const [cId, tName] = termId.split('_', 2);
+                                    const splitIdx = termId.indexOf('::');
+                                    if (splitIdx === -1) return;
+                                    const cId = termId.substring(0, splitIdx);
+                                    const tName = termId.substring(splitIdx + 2);
+
                                     if(cId === inv.id) return;
                                     const comp = components.find(x => x.id === cId);
                                     if (!comp) return;
-                                    if (['ac_breaker','consumer_main','consumer_sub'].includes(comp.type) && comp.isOn === false) return;
                                     
-                                    // Calculate AC loads connected
+                                    if (['ac_breaker','consumer_main','consumer_sub'].includes(comp.type) && comp.isOn === false) return;
                                     if(['bulb_ac','socket_ac','motor_ac'].includes(comp.type) && (tName === 'l' || tName === 'in' || tName === 'in_l') && compStates[cId]?.activeWatts) {
                                         totalAcLoad += compStates[cId].activeWatts;
                                     }
-                                    
                                     if(['ac_breaker','consumer_main','consumer_sub','energy_meter'].includes(comp.type)) {
-                                         let otherTerm = tName.includes('in') ? tName.replace('in', 'out') : tName.includes('out') ? tName.replace('out', 'in') : null;
+                                         let otherTerm = null;
+                                         if (tName.startsWith('in_')) otherTerm = tName.replace('in_', 'out_');
+                                         else if (tName.startsWith('out_')) otherTerm = tName.replace('out_', 'in_');
+                                         else if (tName === 'in') otherTerm = 'out';
+                                         else if (tName === 'out') otherTerm = 'in';
+                                         
                                          if(otherTerm) {
-                                             const otherNet = getNet(`${cId}_${otherTerm}`);
+                                             const otherNet = getNet(`${cId}::${otherTerm}`);
                                              if(otherNet && !visited.has(otherNet)) { visited.add(otherNet); queue.push(otherNet); }
                                          }
                                     }
@@ -727,19 +847,14 @@
                             }
                         });
                         
-                        // Check Overload
                         const invCapacityW = (SPECS[inv.type].capacityKW || 5) * 1000;
                         const isOverloaded = totalAcLoad > invCapacityW;
-
-                        // คำนวณ DC Draw ตามมาตรฐาน: กำลังไฟขาออก / ประสิทธิภาพ + Standby Loss
-                        const INVERTER_EFFICIENCY = 0.90; // ประสิทธิภาพอินเวอร์เตอร์มาตรฐาน 90%
-                        const STANDBY_POWER = 15; // กินไฟสแตนด์บาย 15W
+                        const INVERTER_EFFICIENCY = 0.90; 
+                        const STANDBY_POWER = 15; 
                         const dcDraw = totalAcLoad > 0 ? (totalAcLoad / INVERTER_EFFICIENCY) + STANDBY_POWER : STANDBY_POWER;
 
                         compStates[inv.id] = { ...compStates[inv.id], acLoadWatts: totalAcLoad, dcInputWatts: dcDraw, isOverloaded };
-                        
-                        // หาก Inverter เปิดอยู่ ให้รวมเป็นโหลดของแบตเตอรี่
-                        if (compStates[inv.id].isPowered) {
+                        if (compStates[inv.id].isPowered && !inv.type.startsWith('inv_on_')) { 
                             globalBatteryDrain += dcDraw; 
                         }
                     } else {
@@ -747,7 +862,53 @@
                     }
                 });
 
-                // --- คำนวณค่าแสดงผลสำหรับ Meter (ยึดหลัก P = V * I) ---
+                components.forEach(bat => {
+                    if (bat.type === COMPONENT_TYPES.BATTERY) {
+                        const batPosNet = getNet(`${bat.id}::pos`);
+                        const batNegNet = getNet(`${bat.id}::neg`);
+                        let chargeW = 0;
+                        let dischargeW = 0;
+
+                        if (batPosNet && batNegNet) {
+                            components.filter(c => c.type === COMPONENT_TYPES.CHARGER).forEach(chg => {
+                                const chgBatPosNet = getNet(`${chg.id}::bat_pos`);
+                                const chgBatNegNet = getNet(`${chg.id}::bat_neg`);
+                                if (chgBatPosNet && chgBatNegNet && areNetsConnected(batPosNet, chgBatPosNet) && areNetsConnected(batNegNet, chgBatNegNet)) {
+                                    if (compStates[chg.id]?.isCharging) {
+                                        chargeW += estPvAvailableWatts * 0.9;
+                                    } else if (compStates[chg.id]?.loadWatts > 0) {
+                                        dischargeW += compStates[chg.id].loadWatts;
+                                    }
+                                }
+                            });
+
+                            components.filter(c => c.type.startsWith('inv_')).forEach(inv => {
+                                const invBatPosNet = getNet(`${inv.id}::bat_pos`);
+                                const invBatNegNet = getNet(`${inv.id}::bat_neg`);
+                                if (invBatPosNet && invBatNegNet && areNetsConnected(batPosNet, invBatPosNet) && areNetsConnected(batNegNet, invBatNegNet)) {
+                                    if (compStates[inv.id]?.isCharging) {
+                                        chargeW += estPvAvailableWatts * 0.9;
+                                    }
+                                    if (compStates[inv.id]?.isPowered && compStates[inv.id]?.dcInputWatts > 0) {
+                                         dischargeW += compStates[inv.id].dcInputWatts;
+                                    }
+                                }
+                            });
+
+                            components.forEach(load => {
+                                if (['bulb_dc', 'motor_dc'].includes(load.type) && compStates[load.id]?.isPowered) {
+                                    const loadPosNet = getNet(`${load.id}::pos`);
+                                    const loadNegNet = getNet(`${load.id}::neg`);
+                                    if (loadPosNet && loadNegNet && areNetsConnected(batPosNet, loadPosNet) && areNetsConnected(batNegNet, loadNegNet)) {
+                                        dischargeW += compStates[load.id].activeWatts;
+                                    }
+                                }
+                            });
+                        }
+                        compStates[bat.id] = { ...compStates[bat.id], netWatts: chargeW - dischargeW };
+                    }
+                });
+
                 let totalAcLoadForMeter = 0;
                 components.forEach(load => {
                     if(['bulb_ac', 'socket_ac', 'motor_ac'].includes(load.type) && compStates[load.id]?.activeWatts) {
@@ -756,28 +917,17 @@
                 });
 
                 components.forEach(c => {
-                    // อัปเดตหน้าจอ DC Meter
                     if (c.type === COMPONENT_TYPES.DC_WATT_METER) {
-                        const p = getNet(`${c.id}_in_pos`);
-                        const n = getNet(`${c.id}_in_neg`);
-                        const v = Math.abs((netVoltages.get(p) || 0) - (netVoltages.get(n) || 0));
-                        
+                        const p = getNet(`${c.id}::in_pos`); const n = getNet(`${c.id}::in_neg`);
+                        const v = Math.abs(getVDiff(p, n));
                         let w = 0;
-                        if (v > 15) {
-                            // วัดไฟฝั่ง PV: คิดจากกำลังผลิตที่ดึงมาใช้งานจริง (เผื่อ Loss สายไฟ 5%)
-                            w = isSystemCharging ? estPvAvailableWatts * 0.95 : 0;
-                        } else if (v > 5) {
-                            // วัดไฟฝั่ง แบต/โหลด: แสดงโหลดรวม DC ทั้งระบบ
-                            w = globalBatteryDrain;
-                        }
+                        if (v > 15) w = isSystemCharging ? estPvAvailableWatts * 0.95 : 0;
+                        else if (v > 5) w = globalBatteryDrain;
                         compStates[c.id] = { ...compStates[c.id], volts: v, watts: w };
                     }
-                    // อัปเดตหน้าจอ AC Meter
                     if (c.type === COMPONENT_TYPES.ENERGY_METER) {
-                        const l = getNet(`${c.id}_in_l`);
-                        const n = getNet(`${c.id}_in_n`);
-                        const v = Math.abs((netVoltages.get(l) || 0) - (netVoltages.get(n) || 0));
-                        
+                        const l = getNet(`${c.id}::in_l`); const n = getNet(`${c.id}::in_n`);
+                        const v = Math.abs(getVDiff(l, n));
                         const w = v > 50 ? totalAcLoadForMeter : 0;
                         compStates[c.id] = { ...compStates[c.id], volts: v, watts: w };
                     }
@@ -786,13 +936,49 @@
                 const finalTerminalVoltages = {};
                 components.forEach(c => {
                     if(SPECS[c.type]?.terminals) SPECS[c.type].terminals.forEach(t => {
-                        const v = netVoltages.get(getNet(`${c.id}_${t.id}`));
+                        const v = netVoltages.get(getNet(`${c.id}::${t.id}`));
                         finalTerminalVoltages[`${c.id}_${t.id}`] = v !== undefined ? v : 0;
                     });
                 });
 
                 setSimResults({ voltages: netVoltages, states: compStates, batteryDrainWatts: globalBatteryDrain, isShort: false, terminalVoltages: finalTerminalVoltages });
             }, [components, wires, sunIntensity, masterLoadOn, tick]); 
+
+            // --- อัปเดตแบตเตอรี่ (SOC) ซิงค์ให้เสถียร ---
+            useEffect(() => {
+                if (!isRunning || simResults.isShort) return;
+
+                setComponents(prev => {
+                    let changed = false;
+                    const next = prev.map(c => {
+                        if (c.type === COMPONENT_TYPES.BATTERY) {
+                            const batState = simResults.states[c.id];
+                            const netWatts = batState?.netWatts || 0; 
+
+                            if (Math.abs(netWatts) > 0.1) {
+                                const totalCapacity = Number(c.capacity) || 100;
+                                const netAmps = netWatts / 12; 
+                                
+                                // ปรับเวลาให้ช้าลงสมจริง
+                                const TIME_SPEED = 0.002; 
+                                const totalAhChange = netAmps * TIME_SPEED;
+                                const socChange = (totalAhChange / totalCapacity) * 100;
+
+                                let currentSoc = Number(c.soc !== undefined ? c.soc : 50);
+                                let newSoc = currentSoc + socChange;
+                                newSoc = Math.max(0, Math.min(100, newSoc)); 
+                                
+                                if (Math.abs(newSoc - currentSoc) > 0.001) { 
+                                    changed = true;
+                                    return { ...c, soc: newSoc };
+                                }
+                            }
+                        }
+                        return c;
+                    });
+                    return changed ? next : prev;
+                });
+            }, [tick, isRunning, simResults]); 
 
             const handlePointerMove = (e) => {
                 setMousePos({x: e.clientX, y: e.clientY});
@@ -825,7 +1011,6 @@
                 let cx = 300, cy = 300;
                 if (container) {
                     const rect = container.getBoundingClientRect();
-                    // คำนวณหาจุดกึ่งกลางของหน้าจอที่มองเห็นอยู่
                     cx = (rect.width / 2 + container.scrollLeft) / zoom;
                     cy = (rect.height / 2 + container.scrollTop) / zoom;
                 }
@@ -838,10 +1023,31 @@
                     x: snapToGrid(cx - w/2), 
                     y: snapToGrid(cy - h/2), 
                     watts: type === COMPONENT_TYPES.PANEL ? 550 : 100, 
-                    capacityKW: 5, capacity: 100, soc: 50, maxVoltage: 40, isOn: true
+                    capacityKW: spec?.capacityKW || 5, capacity: 100, soc: 50, maxVoltage: 40, isOn: true
                 };
                 setComponents(prev => [...prev, newComp]);
                 setSelectedObj(null);
+            };
+
+            const loadExampleSystem = () => {
+                if(components.length > 0) {
+                    const confirmLoad = window.confirm("การโหลดวงจรตัวอย่าง จะลบอุปกรณ์และสายไฟที่คุณวาดไว้ปัจจุบันทั้งหมด คุณต้องการดำเนินการต่อหรือไม่?");
+                    if(!confirmLoad) return;
+                }
+                
+                setIsRunning(false);
+                setComponents(EXAMPLE_COMPONENTS.map(c => ({...c})));
+                setWires(EXAMPLE_WIRES.map(w => ({...w, waypoints: w.waypoints.map(wp => ({...wp}))})));
+                setSelectedObj(null);
+                setSunIntensity(80);
+                
+                setZoom(0.65);
+                setTimeout(() => {
+                    if(canvasRef.current) {
+                        canvasRef.current.scrollLeft = 0;
+                        canvasRef.current.scrollTop = 0;
+                    }
+                }, 100);
             };
 
             const selectedSpec = selectedObj?.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type] : null;
@@ -892,6 +1098,11 @@
                             <button onClick={() => setIsRunning(!isRunning)} className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all shadow-lg border-2 ${isRunning ? 'bg-red-500 text-white border-red-400 hover:bg-red-600' : 'bg-green-600 text-white border-green-500 hover:bg-green-700'}`}>
                                 <Icon name={isRunning ? 'rotate-ccw' : 'play'} size={20} /><span className="text-lg">{isRunning ? 'หยุดจำลอง' : 'เริ่มจำลอง'}</span>
                             </button>
+                            
+                            <button onClick={loadExampleSystem} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg border border-blue-400 shadow-blue-500/30">
+                                <Icon name="layout-template" size={18} /> ✨ โหลดวงจรตัวอย่าง
+                            </button>
+
                             <div className="grid grid-cols-2 gap-3">
                                 <button onClick={() => setMasterLoadOn(!masterLoadOn)} className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl font-bold transition-all shadow-md border ${masterLoadOn ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
                                     <Icon name="power" size={18} /><span className="text-xs">โหลด {masterLoadOn ? 'ON' : 'OFF'}</span>
@@ -908,7 +1119,6 @@
                         <div className="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar pb-20">
                             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 px-1">เพิ่มอุปกรณ์</h3>
                             
-                            {/* Search Box */}
                             <div className="relative mb-4">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <Icon name="search" size={14} className="text-slate-400" />
@@ -925,13 +1135,10 @@
                             {Object.keys(SPECS).filter(key => SPECS[key].label.toLowerCase().includes(searchQuery.toLowerCase())).map(key => (
                                 <button key={key} onClick={() => { addComponent(key); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-3 bg-slate-800 hover:bg-blue-600 hover:border-blue-500 text-slate-200 hover:text-white rounded-xl border border-slate-700 transition-all group text-left shadow-sm">
                                     <div className="bg-slate-700 p-2 rounded-lg group-hover:bg-blue-500 transition-colors shadow-inner flex items-center justify-center"><Icon name={SPECS[key].icon} size={18} className="text-slate-300 group-hover:text-white" /></div>
-                                    <span className="text-sm font-bold flex-1">{SPECS[key].label}</span>
+                                    <span className="text-xs font-bold flex-1">{SPECS[key].label}</span>
                                     <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-blue-500 transition-colors"><Icon name="plus" size={12} className="text-slate-400 group-hover:text-white" /></div>
                                 </button>
                             ))}
-                            {Object.keys(SPECS).filter(key => SPECS[key].label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                                <div className="text-center text-slate-500 text-sm py-4">ไม่พบอุปกรณ์ที่ค้นหา</div>
-                            )}
                         </div>
                     </div>
 
@@ -1006,6 +1213,7 @@
                                         const c1 = components.find(c => c.id === w.from); const c2 = components.find(c => c.id === w.to);
                                         if(!c1 || !c2) return null;
                                         const t1 = SPECS[c1.type].terminals.find(t => t.id === w.fromTerm); const t2 = SPECS[c2.type].terminals.find(t => t.id === w.toTerm);
+                                        if(!t1 || !t2) return null;
                                         const p1 = { x: c1.x + t1.x, y: c1.y + (t1.y !== undefined ? t1.y : SPECS[c1.type].height + 5) }; 
                                         const p2 = { x: c2.x + t2.x, y: c2.y + (t2.y !== undefined ? t2.y : SPECS[c2.type].height + 5) };
                                         const isSel = selectedObj?.type === 'wire' && selectedObj.id === w.id;
@@ -1016,7 +1224,6 @@
                                                 <path d={path} stroke="#f1f5f9" strokeWidth={isSel ? 10 : 6} fill="none" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none" />
                                                 <path d={path} stroke={isSel ? "#fbbf24" : (w.color || t1.color)} strokeWidth={isSel ? 4 : 2} fill="none" strokeLinecap="round" strokeLinejoin="round" className="wire-shadow pointer-events-none" />
                                                 
-                                                {/* จุดสีเหลืองสำหรับคลิกเพิ่มจุดจัดสายตรงกลาง (Midpoint Adders) */}
                                                 {isSel && (() => {
                                                     const pts = [p1, ...(w.waypoints || []), p2];
                                                     const midpoints = [];
@@ -1033,7 +1240,6 @@
                                                                setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: newWaypoints } : old));
                                                            }}
                                                            className="cursor-pointer touch-none group">
-                                                            {/* Hit Area แบบคงที่ ป้องกันอาการเด้ง */}
                                                             <circle r="20" fill="transparent" /> 
                                                             <g className="transition-transform group-hover:scale-125 pointer-events-none">
                                                                 <circle r="9" fill="#fbbf24" stroke="white" strokeWidth="2" className="shadow-md" />
@@ -1043,13 +1249,11 @@
                                                     ));
                                                 })()}
 
-                                                {/* จุดสีน้ำเงินสำหรับลากจัดสาย (Waypoint Handles) */}
                                                 {isSel && (w.waypoints || []).map((wp, idx) => (
                                                     <g key={wp.id} transform={`translate(${wp.x}, ${wp.y})`} 
                                                        onPointerDown={(e) => { e.stopPropagation(); e.target.setPointerCapture(e.pointerId); setDragInfo({ type: 'waypoint', wireId: w.id, index: idx }); }} 
                                                        onDoubleClick={(e) => { e.stopPropagation(); setWires(prev => prev.map(old => old.id === w.id ? { ...old, waypoints: old.waypoints.filter((_, i) => i !== idx) } : old)); }} 
                                                        className="cursor-move touch-none group">
-                                                        {/* Hit Area แบบคงที่ ป้องกันอาการเด้ง */}
                                                         <circle r="24" fill="transparent" /> 
                                                         <circle r="14" fill="white" stroke="#3b82f6" strokeWidth="3" className="shadow-md transition-transform group-hover:scale-110 pointer-events-none" />
                                                     </g>
@@ -1063,7 +1267,6 @@
                                 {components.map(comp => {
                                     const spec = SPECS[comp.type]; const state = simResults.states[comp.id] || {};
                                     const isSel = selectedObj?.type === 'comp' && selectedObj.id === comp.id;
-                                    const isCharging = Object.values(simResults.states).some(s => s.isCharging); 
 
                                     return (
                                         <div key={comp.id} className="absolute z-10" style={{left: comp.x, top: comp.y}}>
@@ -1071,9 +1274,9 @@
                                                 {isSel && <button onClick={(e) => { e.stopPropagation(); deleteObj({type:'comp', id: comp.id}); }} className="absolute -top-10 -right-10 bg-red-500 text-white rounded-full p-4 shadow-xl z-50"><Icon name="x" size={20} strokeWidth={3}/></button>}
                                                 <svg width={spec.width} height={spec.height + 40} className="overflow-visible drop-shadow-md">
                                                     {comp.type === COMPONENT_TYPES.PANEL && <PVPanelVisual width={spec.width} height={spec.height} sunIntensity={sunIntensity} maxVoltage={comp.maxVoltage || 40} watts={comp.watts || 550} />}
-                                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} capacity={comp.capacity !== undefined ? comp.capacity : 100} isCharging={isCharging && comp.soc < 100} />}
+                                                    {comp.type === COMPONENT_TYPES.BATTERY && <BatteryVisual width={spec.width} height={spec.height} soc={comp.soc !== undefined ? comp.soc : 50} capacity={comp.capacity !== undefined ? comp.capacity : 100} isCharging={(state.netWatts > 0) && comp.soc < 100} />}
                                                     {comp.type === COMPONENT_TYPES.CHARGER && <ChargerVisual width={spec.width} height={spec.height} isCharging={state.isCharging} hasLoad={state.hasLoad} />}
-                                                    {comp.type.startsWith('inv_') && <AdvancedInverterVisual width={spec.width} height={spec.height} label={spec.label} capacityKW={spec.capacityKW} isPowered={state.isPowered} isCharging={state.isCharging} isOverloaded={state.isOverloaded} is3Phase={comp.type.includes('_3p')} />}
+                                                    {comp.type.startsWith('inv_') && <AdvancedInverterVisual width={spec.width} height={spec.height} label={spec.label} capacityKW={spec.capacityKW} isPowered={state.isPowered} isCharging={state.isCharging} isOverloaded={state.isOverloaded} is3Phase={comp.type.includes('_3p')} invClass={spec.invClass} />}
                                                     {comp.type === COMPONENT_TYPES.FUSE && <FuseVisual width={spec.width} height={spec.height} />}
                                                     {comp.type === COMPONENT_TYPES.AC_FUSE && <AcFuseVisual width={spec.width} height={spec.height} />}
                                                     {comp.type === COMPONENT_TYPES.MOTOR_AC && <MotorVisual width={spec.width} height={spec.height} isPowered={state.isPowered} label="AC MOTOR" />}
