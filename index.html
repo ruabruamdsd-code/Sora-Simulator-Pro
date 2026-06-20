@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Solar Simulator Pro Thai - ระบบจำลองโซล่าเซลล์</title>
-    <meta name="apple-mobile-web-app-title" content="Solar Simulator">
+    <title>Sora Simulator Pro - ระบบจำลองโซล่าเซลล์</title>
+    <meta name="apple-mobile-web-app-title" content="Sora Simulator">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-180x180.png">
@@ -74,6 +74,22 @@
             50% { fill: #7f1d1d; }
             100% { fill: #ef4444; }
         }
+        /* Custom Animations for Loading Screen */
+        @keyframes loadingBar {
+            0% { left: -50%; width: 50%; }
+            100% { left: 100%; width: 50%; }
+        }
+        @keyframes floatLogo {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-loading-bar {
+            animation: loadingBar 1.5s ease-in-out infinite alternate;
+        }
+        .animate-float {
+            animation: floatLogo 3s ease-in-out infinite;
+        }
         .tooltip-probe {
             position: absolute;
             background: rgba(0, 0, 0, 0.9);
@@ -109,23 +125,53 @@
                 errorDiv.classList.remove('hidden');
                 errorDiv.classList.add('flex');
                 document.getElementById('error-message').textContent = e.message + '\nที่ไฟล์: ' + e.filename + ' (บรรทัด: ' + e.lineno + ')';
-                const spinner = errorOverlay.querySelector('.animate-spin');
-                if (spinner) spinner.remove();
+                const spinner = document.getElementById('loading-spinner-container');
+                if (spinner) spinner.style.display = 'none';
             }
         });
     </script>
 </head>
 <body class="bg-slate-100 overflow-hidden no-select">
 
-    <!-- หน้าจอแสดงการโหลดและกรณีข้อผิดพลาด -->
-    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 text-white flex flex-col items-center justify-center z-[10000] transition-opacity duration-500">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-500 mb-6"></div>
-        <h1 class="text-2xl font-bold mb-2">Solar Simulator Pro Thai</h1>
-        <p class="text-slate-400 text-sm">กำลังดาวน์โหลดโมดูลจำลองการทำงานและไลบรารีโซล่าเซลล์...</p>
-        <p class="text-slate-500 text-xs mt-2 px-6 text-center">หากหน้าจอค้างนานเกินไป โปรดเชื่อมต่ออินเทอร์เน็ตเพื่อโหลดระบบประมวลผล</p>
-        <div id="error-display" class="hidden mt-6 p-4 bg-red-950 border border-red-500 rounded-lg max-w-md flex-col items-center">
-            <p class="text-red-400 font-bold text-sm">เกิดข้อผิดพลาดในการโหลดระบบ:</p>
-            <p id="error-message" class="text-white font-mono text-xs mt-1 text-center whitespace-pre-wrap"></p>
+    <!-- หน้าจอแสดงการโหลดแบบมืออาชีพ -->
+    <div id="loading-overlay" class="fixed inset-0 bg-[#050505] text-white flex flex-col items-center justify-center z-[10000] transition-opacity duration-700 ease-in-out">
+        
+        <!-- โลโก้พร้อมเอฟเฟกต์แสงด้านหลัง -->
+        <div class="relative w-72 md:w-96 mb-12 animate-float">
+            <!-- Glow effect -->
+            <div class="absolute inset-0 bg-blue-600/30 blur-[80px] rounded-full scale-110"></div>
+            <!-- Image (ใช้ไฟล์ที่อัปโหลดมา หากไม่พบจะใช้ placeholder) -->
+            <img src="https://media.discordapp.net/attachments/1516804516111187990/1517855034925383791/2a382abd-ce34-413e-a7ad-3195a9e7d811.png?ex=6a37cc28&is=6a367aa8&hm=94f3b61839379ba242ff1cd141c6a44f3ea25efefb0288c2829754cc0765958e&=&format=webp&quality=lossless&width=1522&height=856" 
+                 alt="Sora Simulator Pro" 
+                 class="relative z-10 w-full h-auto object-contain rounded-2xl drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                 onerror="this.src='https://placehold.co/800x400/000000/FFFFFF?text=Sora+Simulator+Pro'">
+        </div>
+
+        <!-- ตัวโหลดข้อมูล -->
+        <div id="loading-spinner-container" class="w-64 flex flex-col items-center">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-amber-400"></div>
+                <span class="text-slate-200 text-sm font-bold tracking-widest uppercase shadow-black drop-shadow-md">กำลังโหลดระบบ...</span>
+            </div>
+            <!-- Progress Bar -->
+            <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden relative shadow-inner">
+                <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 w-1/2 rounded-full animate-loading-bar shadow-[0_0_10px_rgba(251,191,36,0.5)]"></div>
+            </div>
+            
+            <p class="text-slate-500 text-[11px] mt-6 px-4 text-center">
+                จัดเตรียมโมดูลจำลองและไลบรารีโซล่าเซลล์<br>
+                <span class="text-slate-600">Sora Simulator Pro Engine V1.0</span>
+            </p>
+        </div>
+
+        <!-- หน้าจอแสดง Error ถ้ามีปัญหา -->
+        <div id="error-display" class="hidden mt-8 p-5 bg-red-950/80 border border-red-500 rounded-xl max-w-md flex-col items-center backdrop-blur-md shadow-2xl">
+            <div class="flex items-center gap-2 text-red-400 font-bold mb-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>พบข้อผิดพลาดในการโหลดระบบ</span>
+            </div>
+            <p id="error-message" class="text-slate-300 font-mono text-xs text-center whitespace-pre-wrap bg-black/50 p-3 rounded-lg w-full"></p>
+            <p class="text-slate-500 text-xs mt-3">โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและรีเฟรชหน้าเว็บอีกครั้ง</p>
         </div>
     </div>
 
@@ -718,12 +764,14 @@
             
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
 
-            // ซ่อนหน้าโหลดข้อมูล Overlay เมื่อ React วาดองค์ประกอบเสร็จสมบูรณ์
+            // ซ่อนหน้าโหลดข้อมูล Overlay เมื่อ React วาดองค์ประกอบเสร็จสมบูรณ์ พร้อมใส่ Delay เล็กน้อยให้เห็นความสวยงาม
             useEffect(() => {
                 const overlay = document.getElementById('loading-overlay');
                 if (overlay) {
-                    overlay.style.opacity = '0';
-                    setTimeout(() => overlay.remove(), 500);
+                    setTimeout(() => {
+                        overlay.style.opacity = '0';
+                        setTimeout(() => overlay.remove(), 700); // รอให้ Fade out เสร็จค่อยลบ
+                    }, 5000); // หน่วงเวลาโชว์โลโก้อย่างน้อย 1.8 วินาที
                 }
             }, []);
 
