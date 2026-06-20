@@ -9,14 +9,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon-180x180.png">
     <meta name="mobile-web-app-capable" content="yes">
-    <!-- React & Babel CDNs -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- React & Babel CDNs (ใช้ CDNJS ที่เสถียรและเร็วขึ้น) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js" crossorigin></script>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
         body { 
@@ -98,24 +99,265 @@
         .touch-none { touch-action: none !important; }
         input[type="range"] { touch-action: pan-x; }
     </style>
+    
+    <script>
+        // ระบบตรวจจับข้อผิดพลาดเชิงลึกเพื่อป้องกันหน้าจอขาว
+        window.addEventListener('error', function(e) {
+            const errorDiv = document.getElementById('error-display');
+            const errorOverlay = document.getElementById('loading-overlay');
+            if (errorDiv && errorOverlay) {
+                errorDiv.classList.remove('hidden');
+                errorDiv.classList.add('flex');
+                document.getElementById('error-message').textContent = e.message + '\nที่ไฟล์: ' + e.filename + ' (บรรทัด: ' + e.lineno + ')';
+                const spinner = errorOverlay.querySelector('.animate-spin');
+                if (spinner) spinner.remove();
+            }
+        });
+    </script>
 </head>
 <body class="bg-slate-100 overflow-hidden no-select">
+
+    <!-- หน้าจอแสดงการโหลดและกรณีข้อผิดพลาด -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900 text-white flex flex-col items-center justify-center z-[10000] transition-opacity duration-500">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-500 mb-6"></div>
+        <h1 class="text-2xl font-bold mb-2">Solar Simulator Pro Thai</h1>
+        <p class="text-slate-400 text-sm">กำลังดาวน์โหลดโมดูลจำลองการทำงานและไลบรารีโซล่าเซลล์...</p>
+        <p class="text-slate-500 text-xs mt-2 px-6 text-center">หากหน้าจอค้างนานเกินไป โปรดเชื่อมต่ออินเทอร์เน็ตเพื่อโหลดระบบประมวลผล</p>
+        <div id="error-display" class="hidden mt-6 p-4 bg-red-950 border border-red-500 rounded-lg max-w-md flex-col items-center">
+            <p class="text-red-400 font-bold text-sm">เกิดข้อผิดพลาดในการโหลดระบบ:</p>
+            <p id="error-message" class="text-white font-mono text-xs mt-1 text-center whitespace-pre-wrap"></p>
+        </div>
+    </div>
+
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
+        // --- Custom SVG Icons เพื่อความเสถียรและเร็วที่สุด ไม่พึ่งพา CDN สำหรับแสดงไอคอน ---
+        const SVG_ICONS = {
+            "sun": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <circle cx="12" cy="12" r="4"/>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                </svg>
+            ),
+            "battery": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <rect width="16" height="10" x="2" y="7" rx="2" ry="2"/>
+                    <line x1="22" x2="22" y1="11" y2="13"/>
+                </svg>
+            ),
+            "battery-charging": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/>
+                    <path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1"/>
+                    <path d="m11 7-3 5h4l-3 5"/>
+                    <line x1="22" x2="22" y1="11" y2="13"/>
+                </svg>
+            ),
+            "cpu": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <rect width="16" height="16" x="4" y="4" rx="2"/>
+                    <rect width="6" height="6" x="9" y="9" rx="1"/>
+                    <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3"/>
+                </svg>
+            ),
+            "power": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M12 2v10"/>
+                    <path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>
+                </svg>
+            ),
+            "gauge": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="m12 14 4-4"/>
+                    <path d="M3.34 19a10 10 0 1 1 17.32 0"/>
+                </svg>
+            ),
+            "activity": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+            ),
+            "shield-alert": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8-2a1 1 0 0 1 .48 0l8 2c.57.14.76.62.76.97Z"/>
+                    <path d="M12 8v4"/>
+                    <path d="M12 16h.01"/>
+                </svg>
+            ),
+            "shield-check": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8-2a1 1 0 0 1 .48 0l8 2c.57.14.76.62.76.97Z"/>
+                    <path d="m9 11 2 2 4-4"/>
+                </svg>
+            ),
+            "box": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            ),
+            "shield": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8-2a1 1 0 0 1 .48 0l8 2c.57.14.76.62.76.97Z"/>
+                </svg>
+            ),
+            "toggle-right": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <rect width="20" height="12" x="2" y="6" rx="6" ry="6"/>
+                    <circle cx="16" cy="12" r="2"/>
+                </svg>
+            ),
+            "database": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+                </svg>
+            ),
+            "circle-dot": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="1"/>
+                </svg>
+            ),
+            "zap": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+            ),
+            "lightbulb": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .3 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+                    <path d="M9 18h6"/>
+                    <path d="M10 22h4"/>
+                </svg>
+            ),
+            "fan": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 12c2-3 5-2 5-2s-1 3-5 2"/>
+                    <path d="M12 12c-3-2-2-5-2-5s3 1 2 5"/>
+                    <path d="M12 12c-2 3-5 2-5 2s1-3 5-2"/>
+                    <path d="M12 12c3 2 2 5 2 5s-3-1-2-5"/>
+                </svg>
+            ),
+            "menu": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <line x1="4" x2="20" y1="12" y2="12"/>
+                    <line x1="4" x2="20" y1="6" y2="6"/>
+                    <line x1="4" x2="20" y1="18" y2="18"/>
+                </svg>
+            ),
+            "chevron-left": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            ),
+            "rotate-ccw": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <polyline points="3 3 3 8 8 8"/>
+                </svg>
+            ),
+            "play": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <polygon points="6 3 20 12 6 21 6 3"/>
+                </svg>
+            ),
+            "layout-template": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <rect width="18" height="18" x="3" y="3" rx="2"/>
+                    <path d="M21 9H3"/>
+                    <path d="M21 15H3"/>
+                    <path d="M12 3v18"/>
+                </svg>
+            ),
+            "wrench": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+            ),
+            "search": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.3-4.3"/>
+                </svg>
+            ),
+            "plus": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M5 12h14"/>
+                    <path d="M12 5v14"/>
+                </svg>
+            ),
+            "settings": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+            ),
+            "trash-2": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    <line x1="10" x2="10" y1="11" y2="17"/>
+                    <line x1="14" x2="14" y1="11" y2="17"/>
+                </svg>
+            ),
+            "plus-circle": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 12h8"/>
+                    <path d="M12 8v8"/>
+                </svg>
+            ),
+            "move": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="m5 9-3 3 3 3"/>
+                    <path d="M2 12h20"/>
+                    <path d="m19 9 3 3-3 3"/>
+                    <path d="m12 5-3-3 3-3"/>
+                    <path d="M12 2v20"/>
+                    <path d="m9 19 3 3 3-3"/>
+                </svg>
+            ),
+            "x-circle": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="m15 9-6 6"/>
+                    <path d="m9 9 6 6"/>
+                </svg>
+            ),
+            "x": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M18 6 6 18"/>
+                    <path d="m6 6 12 12"/>
+                </svg>
+            ),
+            "minus": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <path d="M5 12h14"/>
+                </svg>
+            ),
+            "zap-off": (props) => (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+                    <polyline points="12.41 6.75 13 2 3 14 12 14 11 15.62"/>
+                    <polygon points="18.57 12.91 21 10 12 10 12.41 10.42 18.57 12.91"/>
+                    <line x1="2" x2="22" y1="2" y2="22"/>
+                </svg>
+            )
+        };
+
         const Icon = ({ name, size = 16, className = "", strokeWidth = 2, ...props }) => {
-            const iconRef = useRef(null);
-            useEffect(() => {
-                if (iconRef.current) {
-                    lucide.createIcons({
-                        attrs: { class: className, width: size, height: size, 'stroke-width': strokeWidth },
-                        nameAttr: 'data-lucide'
-                    });
-                }
-            }, [name, size, className, strokeWidth]);
-            return <i data-lucide={name} ref={iconRef} className={className} {...props}></i>;
+            const IconComp = SVG_ICONS[name];
+            if (!IconComp) {
+                return <span className={className} style={{ fontSize: size }} {...props}>⚠️</span>;
+            }
+            return <IconComp size={size} className={className} strokeWidth={strokeWidth} style={{ width: size, height: size }} {...props} />;
         };
 
         const GRID_SIZE = 20;
@@ -125,7 +367,6 @@
         const COMPONENT_TYPES = {
             PANEL: 'panel', BATTERY: 'battery', CHARGER: 'charger', 
             
-            // --- New Inverter Types ---
             INV_ON_3KW_1P: 'inv_on_3kw_1p', INV_ON_5KW_1P: 'inv_on_5kw_1p', INV_ON_10KW_1P: 'inv_on_10kw_1p',
             INV_ON_5KW_3P: 'inv_on_5kw_3p', INV_ON_10KW_3P: 'inv_on_10kw_3p',
             
@@ -175,27 +416,23 @@
             },
             [COMPONENT_TYPES.CHARGER]: { label: 'ชาร์จเจอร์', icon: 'battery-charging', width: 200, height: 120, terminals: [{id: 'pv_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 80, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 100, color: COLORS.NEG}, {id: 'load_pos', label: 'LOAD+', x: 140, color: COLORS.POS}, {id: 'load_neg', label: 'LOAD-', x: 160, color: COLORS.NEG}] },
             
-            // --- On-Grid Inverters ---
             [COMPONENT_TYPES.INV_ON_3KW_1P]: { label: 'On-Grid 3kW (1P)', icon: 'cpu', width: 160, height: 130, capacityKW: 3, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV+', x: 30, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 60, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 100, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 130, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_ON_5KW_1P]: { label: 'On-Grid 5kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 5, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 50, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 80, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 110, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 150, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_ON_10KW_1P]: { label: 'On-Grid 10kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 10, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 50, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 80, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 110, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 150, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_ON_5KW_3P]: { label: 'On-Grid 5kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 5, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 140, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 165, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 190, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_ON_10KW_3P]: { label: 'On-Grid 10kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 10, invClass: 'on', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 140, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 165, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 190, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
 
-            // --- Off-Grid Inverters ---
             [COMPONENT_TYPES.INV_OFF_3KW_1P]: { label: 'Off-Grid 3kW (1P)', icon: 'cpu', width: 160, height: 130, capacityKW: 3, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 70, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 90, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 120, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 140, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_OFF_5KW_1P]: { label: 'Off-Grid 5kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 5, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_OFF_10KW_1P]: { label: 'Off-Grid 10kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 10, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_OFF_5KW_3P]: { label: 'Off-Grid 5kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 5, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_OFF_10KW_3P]: { label: 'Off-Grid 10kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 10, invClass: 'off', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
 
-            // --- Hybrid Inverters ---
             [COMPONENT_TYPES.INV_HYB_3KW_1P]: { label: 'Hybrid 3kW (1P)', icon: 'cpu', width: 160, height: 130, capacityKW: 3, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV-', x: 40, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 70, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 90, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 120, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 140, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_HYB_5KW_1P]: { label: 'Hybrid 5kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 5, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_HYB_10KW_1P]: { label: 'Hybrid 10kW (1P)', icon: 'cpu', width: 200, height: 130, capacityKW: 10, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 110, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 130, color: COLORS.NEG}, {id: 'ac_l', label: 'L', x: 160, color: COLORS.AC_L}, {id: 'ac_n', label: 'N', x: 180, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_HYB_5KW_3P]: { label: 'Hybrid 5kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 5, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.INV_HYB_10KW_3P]: { label: 'Hybrid 10kW (3P)', icon: 'cpu', width: 240, height: 130, capacityKW: 10, invClass: 'hyb', terminals: [{id: 'pv1_pos', label: 'PV1+', x: 20, color: COLORS.POS}, {id: 'pv1_neg', label: 'PV1-', x: 40, color: COLORS.NEG}, {id: 'pv2_pos', label: 'PV2+', x: 60, color: COLORS.POS}, {id: 'pv2_neg', label: 'PV2-', x: 80, color: COLORS.NEG}, {id: 'bat_pos', label: 'BAT+', x: 105, color: COLORS.POS}, {id: 'bat_neg', label: 'BAT-', x: 125, color: COLORS.NEG}, {id: 'ac_l1', label: 'L1', x: 155, color: COLORS.AC_L1}, {id: 'ac_l2', label: 'L2', x: 175, color: COLORS.AC_L2}, {id: 'ac_l3', label: 'L3', x: 195, color: COLORS.AC_L3}, {id: 'ac_n', label: 'N', x: 215, color: COLORS.AC_N}] },
-
 
             [COMPONENT_TYPES.BREAKER_DC]: { label: 'DC Breaker', icon: 'power', width: 120, height: 100, terminals: [{id: 'in_1', label: 'เข้า', x: 40, color: COLORS.POS}, {id: 'in_2', label: 'เข้า', x: 60, color: COLORS.NEG}, {id: 'out_1', label: 'ออก', x: 80, color: COLORS.POS}, {id: 'out_2', label: 'ออก', x: 100, color: COLORS.NEG}] },
             [COMPONENT_TYPES.ENERGY_METER]: { label: 'AC Meter', icon: 'gauge', width: 140, height: 100, terminals: [{id: 'in_l', label: 'L-เข้า', x: 20, color: COLORS.AC_L}, {id: 'in_n', label: 'N-เข้า', x: 40, color: COLORS.AC_N}, {id: 'out_l', label: 'L-ออก', x: 80, color: COLORS.AC_L}, {id: 'out_n', label: 'N-ออก', x: 100, color: COLORS.AC_N}] },
@@ -215,7 +452,6 @@
             [COMPONENT_TYPES.TERMINAL_BLOCK_AC_N]: { label: 'จุดพ่วง AC (N)', icon: 'circle-dot', width: 100, height: 40, terminals: [{id: 't1', x: 20, color: COLORS.AC_N}, {id: 't2', x: 40, color: COLORS.AC_N}, {id: 't3', x: 60, color: COLORS.AC_N}, {id: 't4', x: 80, color: COLORS.AC_N}] },
             [COMPONENT_TYPES.AC_SOURCE]: { label: 'AC Source', icon: 'zap', width: 120, height: 110, terminals: [{id: 'l', label: 'L', x: 40, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}, {id: 'g', label: 'G', x: 80, color: COLORS.G}] },
             
-            // --- โหลดไฟฟ้าแยกประเภท AC / DC ---
             [COMPONENT_TYPES.SOCKET_AC]: { 
                 label: 'เต้ารับ AC (220V)', icon: 'power', width: 80, height: 80, 
                 terminals: [{id: 'l', label: 'L', x: 20, color: COLORS.AC_L}, {id: 'n', label: 'N', x: 60, color: COLORS.AC_N}], 
@@ -456,8 +692,10 @@
 
 
         const App = () => {
-            const [components, setComponents] = useState([]);
-            const [wires, setWires] = useState([]); 
+            // โหลดโมเดลตัวอย่างทันทีเมื่อเปิดแอปพลิเคชัน เพื่ออำนวยความสะดวกและป้องกันปัญหาจอขาวว่างเปล่า
+            const [components, setComponents] = useState(() => EXAMPLE_COMPONENTS.map(c => ({...c})));
+            const [wires, setWires] = useState(() => EXAMPLE_WIRES.map(w => ({...w, waypoints: w.waypoints.map(wp => ({...wp}))}))); 
+            
             const [sunIntensity, setSunIntensity] = useState(80);
             const [dragInfo, setDragInfo] = useState(null); 
             const [tempWire, setTempWire] = useState(null);
@@ -467,17 +705,27 @@
             const [simResults, setSimResults] = useState({ voltages: new Map(), states: {}, batteryDrainWatts: 0, isShort: false, terminalVoltages: {} });
             const [masterLoadOn, setMasterLoadOn] = useState(true); 
             const [tick, setTick] = useState(0);
-            const [zoom, setZoom] = useState(1);
+            const [zoom, setZoom] = useState(0.65); // ปรับค่า Zoom เริ่มต้นให้พอดีกับแบบวงจรตัวอย่าง
             const [isProbeMode, setIsProbeMode] = useState(false);
             const [mousePos, setMousePos] = useState({x:0, y:0});
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
             const [searchQuery, setSearchQuery] = useState('');
+            const [showConfirmModal, setShowConfirmModal] = useState(false); // ควบคุมหน้าต่างยืนยันโมดอลแบบสร้างเองแทน alert/confirm บราวเซอร์
 
             const simResultsRef = useRef(simResults);
             const canvasRef = useRef(null);
             const lastTouchRef = useRef(null);
             
             useEffect(() => { simResultsRef.current = simResults; }, [simResults]);
+
+            // ซ่อนหน้าโหลดข้อมูล Overlay เมื่อ React วาดองค์ประกอบเสร็จสมบูรณ์
+            useEffect(() => {
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.remove(), 500);
+                }
+            }, []);
 
             const getLocalPos = (e) => {
                 if (!canvasRef.current) return { x: 0, y: 0 };
@@ -587,7 +835,6 @@
                     return netVoltages.get(netP) - netVoltages.get(netN);
                 };
 
-                // เพิ่ม Meter ให้อยู่ในกลุ่มที่กระแสชาร์จสามารถวิ่งทะลุผ่านไปได้
                 const areNetsConnected = (net1, net2) => {
                     if (net1 === net2) return true;
                     if (!net1 || !net2) return false;
@@ -747,8 +994,6 @@
 
                             if (vPv1 > 15 || vPv2 > 15 || vBat > 11) isPowered = true;
 
-                            // เลื่อนเช็ค < 14.5 เพื่อหลีกเลี่ยงบั๊กกระพริบเมื่อแบตชาร์จเต็มเป๊ะ
-                            // เฉพาะ Off-grid และ Hybrid ที่มีช่องต่อแบต ถึงจะชาร์จได้
                             if (batp && (vPv1 > 15 || vPv2 > 15) && vBat > 0 && vBat <= 14.5) {
                                 isCharging = true; isSystemCharging = true;
                                 netVoltages.set(batp, Math.min(14.4, systemBatVoltage + 0.5 + (sunIntensity/100) * 1.0 + noiseV));
@@ -959,7 +1204,6 @@
                                 const totalCapacity = Number(c.capacity) || 100;
                                 const netAmps = netWatts / 12; 
                                 
-                                // ปรับเวลาให้ช้าลงสมจริง
                                 const TIME_SPEED = 0.002; 
                                 const totalAhChange = netAmps * TIME_SPEED;
                                 const socChange = (totalAhChange / totalCapacity) * 100;
@@ -1029,12 +1273,8 @@
                 setSelectedObj(null);
             };
 
-            const loadExampleSystem = () => {
-                if(components.length > 0) {
-                    const confirmLoad = window.confirm("การโหลดวงจรตัวอย่าง จะลบอุปกรณ์และสายไฟที่คุณวาดไว้ปัจจุบันทั้งหมด คุณต้องการดำเนินการต่อหรือไม่?");
-                    if(!confirmLoad) return;
-                }
-                
+            // ทำการแยกลอจิกการโหลดตัวอย่างมาทำงานจริง หลีกเลี่ยง confirm browser
+            const executeLoadExampleSystem = () => {
                 setIsRunning(false);
                 setComponents(EXAMPLE_COMPONENTS.map(c => ({...c})));
                 setWires(EXAMPLE_WIRES.map(w => ({...w, waypoints: w.waypoints.map(wp => ({...wp}))})));
@@ -1048,6 +1288,14 @@
                         canvasRef.current.scrollTop = 0;
                     }
                 }, 100);
+            };
+
+            const handleLoadExampleClick = () => {
+                if (components.length > 0) {
+                    setShowConfirmModal(true); // แสดงหน้าต่างยืนยันโมดอลแทน window.confirm
+                } else {
+                    executeLoadExampleSystem();
+                }
             };
 
             const selectedSpec = selectedObj?.type === 'comp' ? SPECS[components.find(c => c.id === selectedObj.id)?.type] : null;
@@ -1099,7 +1347,7 @@
                                 <Icon name={isRunning ? 'rotate-ccw' : 'play'} size={20} /><span className="text-lg">{isRunning ? 'หยุดจำลอง' : 'เริ่มจำลอง'}</span>
                             </button>
                             
-                            <button onClick={loadExampleSystem} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg border border-blue-400 shadow-blue-500/30">
+                            <button onClick={handleLoadExampleClick} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg border border-blue-400 shadow-blue-500/30">
                                 <Icon name="layout-template" size={18} /> ✨ โหลดวงจรตัวอย่าง
                             </button>
 
@@ -1311,6 +1559,38 @@
                             </div>
                         </div>
                     </div>
+
+                    {/* หน้าต่างโมดอลแบบกำหนดเอง (Custom Modal) สำหรับยืนยันการโหลดข้อมูลวงจรตัวอย่าง */}
+                    {showConfirmModal && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setShowConfirmModal(false)}>
+                            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center gap-3 text-amber-500 mb-3">
+                                    <Icon name="shield-alert" size={32} className="text-amber-500" />
+                                    <h3 className="text-lg font-bold text-slate-900">โหลดวงจรตัวอย่าง?</h3>
+                                </div>
+                                <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                                    การโหลดวงจรตัวอย่าง จะลบอุปกรณ์และสายไฟที่คุณวาดไว้ปัจจุบันทั้งหมด คุณต้องการดำเนินการต่อหรือไม่?
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button 
+                                        onClick={() => setShowConfirmModal(false)} 
+                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors"
+                                    >
+                                        ยกเลิก
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setShowConfirmModal(false);
+                                            executeLoadExampleSystem();
+                                        }} 
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-colors"
+                                    >
+                                        ยืนยันโหลดวงจร
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
